@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>quick_type</title>
+  <style>
+    :root{--bg:#0b1020;--accent:#ffd166;--danger:#ff5c5c;--ok:#6ee7b7}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(180deg,#071029 0%, #0b1020 100%);color:#e8eef6;display:flex;justify-content:center;align-items:center;}
+    .app{width:960px;max-width:96vw;height:90vh;display:flex;flex-direction:column;gap:12px;}
+
+    .scene{position:relative;border-radius:12px;overflow:hidden;flex:6;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+    .scene.theme-bomb{background:linear-gradient(180deg,#1b0f0f,#2b1212)}
+    .scene.theme-rocket{background:linear-gradient(180deg,#041126,#09203a)}
+    .scene.theme-sub{background:linear-gradient(180deg,#001323,#00324a)}
+    .scene.theme-zombie{background:linear-gradient(180deg,#071316,#1b1a18)}
+    .scene.theme-volcano{background:linear-gradient(180deg,#2b0b00,#3a1a0d)}
+    .scene.theme-space{background:linear-gradient(180deg,#030217,#0b1632)}
+    .scene.theme-magic{background:linear-gradient(180deg,#0b0920,#241040)}
+    .scene.theme-skydive{background:linear-gradient(180deg,#0b2238,#5aa)}
+
+    .panel{flex:4;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.12));border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;}
+
+    .hintFlash{position:absolute;inset:18px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;background:rgba(0,0,0,0.25);backdrop-filter:blur(3px);z-index:5}
+    .chinese{position:relative;z-index:5;font-size:36px;font-weight:700;text-align:center;margin-top:40px}
+    .countdownBig{position:absolute;right:18px;top:18px;background:rgba(0,0,0,0.25);padding:10px 14px;border-radius:10px;font-weight:700;font-size:22px;z-index:6;}
+    .meter{position:absolute;left:18px;top:18px;background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:10px;font-weight:600;z-index:6;}
+
+    .wordTarget{font-size:18px;color:#bcd0e8}
+    .feedback{height:40px;display:flex;align-items:center;justify-content:center;font-size:18px}
+    .feedback.success{color:var(--ok)}
+    .feedback.fail{color:var(--danger)}
+
+    .inputWrap{display:flex;flex-direction:column;gap:12px;align-items:center}
+    #letters{display:flex;gap:6px;flex-wrap:nowrap;justify-content:center;margin-top:10px}
+
+    .btn{padding:10px 12px;border-radius:10px;background:var(--accent);color:#0b1020;font-weight:700;border:none;cursor:pointer}
+
+    .letterInput {
+      width:28px;
+      height:36px;
+      border-radius:6px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(255,255,255,0.03);
+      padding:6px 8px;
+      font-weight:700;
+      color:#eaf4ff;
+      font-size:18px;
+      text-transform:lowercase;
+      text-align:center;
+      outline:none;
+      border:none;
+      animation:pulseGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%,100% { box-shadow:0 0 4px rgba(255,255,255,0.3); }
+      50% { box-shadow:0 0 12px rgba(255,255,255,0.6); }
+    }
+
+    .letterInput.correct{background:rgba(110,231,183,0.15);color:var(--ok)}
+    .letterInput.wrong{background:rgba(255,92,92,0.12);color:var(--danger)}
+
+    .explode{animation:explode 700ms ease-out forwards}
+    @keyframes explode{0%{transform:scale(1);opacity:1}100%{transform:scale(1.6);opacity:0}}
+    .rocketLift{animation:lift 1200ms ease-in forwards}
+    @keyframes lift{0%{transform:translateY(0)}100%{transform:translateY(-380px);opacity:0}}
+
+    .bgLayer{position:absolute;top:0;left:0;width:100%;height:100%;background-size:cover;background-position:center center;z-index:0;opacity:1;transition:opacity 0.2s linear;}
+
+    #wrongWords {
+      font-size:13px;
+      color:#ffb3b3;
+      border-top:1px solid rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.15);
+      padding-top:6px;
+      overflow:auto;
+      max-height:60px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div id="scene" class="scene theme-bomb">
+      <div class="hintFlash" id="flash" style="display:none">flash</div>
+      <div class="countdownBig" id="countdown">--</div>
+      <div class="meter" id="themeLabel">Theme</div>
+      <div style="position:relative;z-index:4">
+        <div class="chinese" id="chinese">——</div>
+      </div>
+      <div id="sceneEffect" style="position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:center;pointer-events:none"></div>
+    </div>
+
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:13px;color:#bcd0e8">已连续成功：<span id="streak">0</span></div>
+        <button id="importBtn" class="btn">导入CSV</button>
+        <input type="file" id="csvInput" accept=".csv" style="display:none"/>
+      </div>
+
+      <div class="inputWrap">
+        <button id="startBtn" class="btn">开始</button>
+        <div id="letters"></div>
+      </div>
+
+      <div class="feedback" id="feedback">点击“开始”随机开始一局</div>
+
+      <div style="font-size:13px;color:#9fb4d9">说明：先闪两秒中英文，然后只显示中文。倒计时结束前拼写正确可过关。</div>
+
+      <div id="wrongWords">错词记录：</div>
+    </div>
+  </div>
+
+  <script>
+    const successSound = new Audio('sounds/success.mp3');
+    const failSounds = {
+      bomb: new Audio('sounds/bomb_fail.mp3'),
+      rocket: new Audio('sounds/rocket_fail.mp3'),
+      sub: new Audio('sounds/sub_fail.mp3'),
+      zombie: new Audio('sounds/zombie_fail.mp3'),
+      volcano: new Audio('sounds/volcano_fail.mp3'),
+      space: new Audio('sounds/space_fail.mp3'),
+      magic: new Audio('sounds/magic_fail.mp3'),
+      skydive: new Audio('sounds/skydive_fail.mp3')
+    };
+
+    const wrongWordsEl = document.getElementById('wrongWords');
+
+    const THEMES=[{id:'bomb',name:'拆除炸弹',time:10},{id:'rocket',name:'火箭发射',time:8},{id:'sub',name:'水下逃生',time:10},{id:'zombie',name:'僵尸来袭',time:6},{id:'volcano',name:'火山逃跑',time:7},{id:'space',name:'太空修复',time:9},{id:'magic',name:'魔法对决',time:8},{id:'skydive',name:'高空坠落',time:10}];
+
+    const scene=document.getElementById('scene'),
+          flash=document.getElementById('flash'),
+          chineseEl=document.getElementById('chinese'),
+          countdownEl=document.getElementById('countdown'),
+          themeLabel=document.getElementById('themeLabel'),
+          lettersWrap=document.getElementById('letters'),
+          startBtn=document.getElementById('startBtn'),
+          feedback=document.getElementById('feedback'),
+          sceneEffect=document.getElementById('sceneEffect'),
+          streakEl=document.getElementById('streak');
+
+    let current=null,timer=null,remain=0,streak=0;
+    let _bgFrame = null, _bgBase = null, _bgNext = null;
+
+    // ---------- 背景图片 ----------
+    const THEME_IMAGES = {
+      bomb: {typing:['images/bomb.png'], success:['images/bomb_success.png'], fail:['images/bomb_fail.png']},
+      rocket: {typing:['images/rocket.png'], success:['images/rocket_success.png'], fail:['images/rocket_fail.png']},
+      sub: {typing:['images/sub.png'], success:['images/sub_success.png'], fail:['images/sub_fail.png']},
+      zombie: {typing:['images/zombie.png'], success:['images/zombie_success.png'], fail:['images/zombie_fail.png']},
+      volcano: {typing:['images/volcano.png'], success:['images/volcano_success.png'], fail:['images/volcano_fail.png']},
+      space: {typing:['images/space.png'], success:['images/space_success.png'], fail:['images/space_fail.png']},
+      magic: {typing:['images/magic.png'], success:['images/magic_success.png'], fail:['images/magic_fail.png']},
+      skydive: {typing:['images/skydive.png'], success:['images/skydive_success.png'], fail:['images/skydive_fail.png']}
+    };
+
+    function startBackgroundAnimationWithImages(images, durationSec){
+      stopBackgroundAnimation();
+      if(!images || images.length === 0) return;
+      _bgBase = document.createElement('div');
+      _bgBase.className = 'bgLayer';
+      _bgBase.style.zIndex = 0;
+      _bgBase.style.opacity = 1;
+      _bgBase.style.backgroundImage = `url('${images[0]}')`;
+      scene.appendChild(_bgBase);
+
+      _bgNext = document.createElement('div');
+      _bgNext.className = 'bgLayer';
+      _bgNext.style.zIndex = 0;
+      _bgNext.style.opacity = 0;
+      _bgNext.style.backgroundImage = images.length>1 ? `url('${images[1]}')` : `url('${images[0]}')`;
+      scene.appendChild(_bgNext);
+
+      const start = performance.now();
+      const lastIndex = images.length - 1;
+
+      function animate(now){
+        const elapsed = now - start;
+        const t = Math.min(elapsed/(durationSec*1000),1);
+        const exactIndex = t*lastIndex;
+        const lower = Math.floor(exactIndex);
+        const upper = Math.min(lower+1,lastIndex);
+        const frac = exactIndex - lower;
+
+        _bgBase.style.backgroundImage = `url('${images[lower]}')`;
+        _bgNext.style.backgroundImage = `url('${images[upper]}')`;
+        _bgNext.style.opacity = frac;
+
+        if(t<1){ _bgFrame=requestAnimationFrame(animate); }
+        else { _bgBase.style.backgroundImage = `url('${images[lastIndex]}')`; _bgNext.style.opacity=0; _bgFrame=null; }
+      }
+
+      _bgFrame=requestAnimationFrame(animate);
+    }
+
+    function stopBackgroundAnimation(){
+      if(_bgFrame){ cancelAnimationFrame(_bgFrame); _bgFrame=null; }
+      if(_bgBase){ try{ scene.removeChild(_bgBase);}catch(e){} _bgBase=null; }
+      if(_bgNext){ try{ scene.removeChild(_bgNext);}catch(e){} _bgNext=null; }
+    }
+
+    // ------------------ CSV 导入单词 ------------------
+    let importedWords = [];
+
+    function pickRandomWord() {
+      if (importedWords.length === 0) {
+        alert('请先导入单词 CSV 文件！');
+        return null;
+      }
+      return importedWords[Math.floor(Math.random() * importedWords.length)];
+    }
+
+    const csvInput = document.getElementById('csvInput');
+    const importBtn = document.getElementById('importBtn');
+
+    importBtn.addEventListener('click', () => { csvInput.click(); });
+
+    csvInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = evt => {
+        const lines = evt.target.result.split(/\r?\n/).filter(l => l.trim() !== '');
+        importedWords = []; // 每次导入覆盖旧单词
+        for (const line of lines) {
+          const parts = line.split(',');
+          if (parts.length < 2) continue;
+          const col1 = parts[0].trim();
+          const col2 = parts[1].trim();
+          if (!col1 || !col2) continue;
+
+          let eng = '', chi = '';
+          if (/[a-zA-Z]/.test(col1) && !/[a-zA-Z]/.test(col2)) {
+            eng = col1; chi = col2;
+          } else if (/[a-zA-Z]/.test(col2) && !/[a-zA-Z]/.test(col1)) {
+            eng = col2; chi = col1;
+          } else {
+            eng = col1; chi = col2;
+          }
+          importedWords.push([eng, chi]);
+        }
+        alert(`已成功导入 ${importedWords.length} 个单词`);
+      };
+      reader.readAsText(file, 'UTF-8');
+    });
+
+    // ------------------ 开始一局 ------------------
+    function renderLettersInputs(target){
+      lettersWrap.innerHTML='';
+      for(let i=0;i<target.length;i++){
+        const input=document.createElement('input');
+        input.className='letterInput';
+        input.maxLength=1;
+        lettersWrap.appendChild(input);
+      }
+      const inputs=lettersWrap.querySelectorAll('input');
+      inputs.forEach((input,idx)=>{
+        input.addEventListener('input',e=>{
+          const val=e.target.value.toLowerCase();
+          if(val && idx<inputs.length-1)inputs[idx+1].focus();
+          checkProgress();
+        });
+        input.addEventListener('keydown',e=>{
+          if(e.key==='Backspace' && !input.value && idx>0){inputs[idx-1].focus();}
+          if(e.key==='Enter'){checkProgress(); onTimeUp();}
+        });
+      });
+      inputs[0].focus();
+    }
+
+    function startRound(){
+      const wordPair = pickRandomWord();
+      if (!wordPair) return;
+      feedback.textContent='准备中...';
+      const [eng,chi] = wordPair;
+      const theme=pickRandomTheme();
+      current={eng,chi,theme};
+      setThemeVisual(theme.id);
+      showFlash(eng,chi);
+      chineseEl.textContent=chi;
+      setTimeout(()=>{
+        renderLettersInputs(eng);
+        feedback.textContent='开始拼写...';
+        remain=theme.time;
+        countdownEl.textContent=remain+'s';
+        if(timer){ clearInterval(timer); timer=null; }
+        stopBackgroundAnimation();
+
+        const typingImages = THEME_IMAGES[current.theme.id].typing;
+        startBackgroundAnimationWithImages(typingImages, current.theme.time);
+
+        timer=setInterval(()=>{
+          if(remain>0){ remain-=1; countdownEl.textContent=remain+'s'; }
+          else{ clearInterval(timer); timer=null; countdownEl.textContent='0s'; onTimeUp(); }
+        },1000);
+
+      },2000);
+    }
+
+    function getTypedWord(){return Array.from(lettersWrap.querySelectorAll('input')).map(i=>i.value).join('');}
+
+    function checkProgress(){
+      const typed = getTypedWord();
+      const target = current.eng;
+      const inputs = lettersWrap.querySelectorAll('input');
+      if(current.wrongRecorded && typed.toLowerCase()===target.toLowerCase()){ current.wrongRecorded=false; }
+      for(let i=0;i<inputs.length;i++){
+        inputs[i].classList.remove('correct','wrong');
+        if(i<typed.length){
+          if(typed[i].toLowerCase()===target[i].toLowerCase()) inputs[i].classList.add('correct');
+          else inputs[i].classList.add('wrong');
+        }
+      }
+      if(typed.toLowerCase()===target.toLowerCase()){
+        if(timer){ clearInterval(timer); timer=null; }
+        onSuccess();
+      }
+    }
+
+    function onTimeUp(){ const typed=getTypedWord(); if(typed.toLowerCase()===current.eng.toLowerCase()) onSuccess(); else onFail(); }
+
+    function onSuccess(){
+      feedback.className='feedback success';
+      feedback.textContent='成功！过关。';
+      successSound.play();
+      streak++;streakEl.textContent=streak;
+
+      const successImages = THEME_IMAGES[current.theme.id].success;
+      startBackgroundAnimationWithImages(successImages, 1.2);
+
+      sceneEffect.innerHTML=`<div class="${current.theme.id==='rocket'?'rocketLift':'explode'}"></div>`;
+    }
+
+    function onFail(){
+      feedback.className='feedback fail';
+      feedback.textContent='失败！时间到或拼写错误';
+      streak=0;streakEl.textContent=streak;
+
+      const failSound=failSounds[current.theme.id];
+      if(failSound) failSound.play();
+
+      if(!current.wrongRecorded){
+        wrongWordsEl.textContent += '\n'+current.eng+' — '+current.chi;
+        current.wrongRecorded=true;
+      }
+
+      const failImages = THEME_IMAGES[current.theme.id].fail;
+      startBackgroundAnimationWithImages(failImages, 1.2);
+
+      sceneEffect.innerHTML=`<div class="explode"></div>`;
+    }
+
+    function pickRandomTheme(){return THEMES[Math.floor(Math.random()*THEMES.length)];}
+
+    function setThemeVisual(themeId){
+      scene.className='scene theme-'+themeId;
+      themeLabel.textContent=THEMES.find(t=>t.id===themeId).name;
+    }
+
+    function showFlash(eng,chi){
+      flash.style.display='flex';
+      flash.textContent=`${eng} — ${chi}`;
+      setTimeout(()=>{ flash.style.display='none'; },2000);
+    }
+
+    startBtn.addEventListener('click',startRound);
+  </script>
+</body>
+</html>
