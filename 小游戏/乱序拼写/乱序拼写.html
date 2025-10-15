@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>乱序拼写</title>
+<style>
+body {
+  background: url('bg.png') no-repeat center center fixed;
+  background-size: cover;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  overflow: hidden;
+}
+
+/* 添加一个半透明遮罩，保证字母可读 */
+body::before {
+  content: "";
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,0.5);
+  z-index:-1;
+}
+
+h1 { margin-bottom: 10px; }
+.word-container, .input-container { margin: 15px 0; position: relative; }
+.letters {
+  position: relative;
+  width: 500px;
+  height: 300px;
+  margin-bottom: 10px;
+  border: 2px dashed #444;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.letter {
+  position: absolute;
+  background: #ffd166;
+  color: #000;
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 20px;
+  transition: transform 0.2s;
+}
+.letter:hover { transform: scale(1.1); }
+
+.slots { display: flex; gap: 10px; margin-bottom: 10px; }
+.slot {
+  width: 40px;
+  height: 40px;
+  border-bottom: 2px solid #ffd166;
+  text-align: center;
+  font-size: 20px;
+  line-height: 40px;
+  transition: all 0.3s;
+}
+.feedback { margin-top: 10px; height: 24px; transition: opacity 0.5s; }
+button {
+  padding: 6px 12px;
+  font-size: 16px;
+  margin-left: 10px;
+  cursor: pointer;
+  border-radius: 5px;
+  border: none;
+}
+#missedWords {
+  margin-top: 20px;
+  border-top: 1px solid #fff;
+  padding-top: 10px;
+  width: 300px;
+}
+#settingsOverlay {
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,0.9);
+  display:flex; flex-direction:column;
+  justify-content:center; align-items:center;
+  color:#fff; font-size:20px; z-index:20;
+}
+#csvBtn {
+  background:red; color:#fff; font-size:18px;
+  padding:10px 20px; margin:10px;
+  border:none; border-radius:5px; cursor:pointer;
+}
+#hintBtn {
+  background:#ff9f1c; color:#000; font-size:16px;
+  padding:5px 10px; margin-left:10px;
+  border:none; border-radius:5px; cursor:pointer;
+}
+/* 错误提示图片遮罩 */
+#errorOverlay {
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,0.8);
+  display:none; justify-content:center; align-items:center;
+  z-index:30;
+}
+#errorOverlay img {
+  max-width: 300px;
+  border-radius: 10px;
+}
+
+/* ✨ 动画效果 ✨ */
+@keyframes glow {
+  0% { box-shadow: 0 0 0px gold; }
+  50% { box-shadow: 0 0 20px gold; }
+  100% { box-shadow: 0 0 0px gold; }
+}
+@keyframes successFlash {
+  0% { box-shadow: 0 0 0px #ffd166; }
+  50% { box-shadow: 0 0 25px #ffd166; }
+  100% { box-shadow: 0 0 0px #ffd166; }
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.glow { animation: glow 0.6s ease-out; }
+.flash { animation: successFlash 0.8s ease-out; }
+.shake { animation: shake 0.4s ease; }
+</style>
+</head>
+<body>
+
+<div id="settingsOverlay">
+  <h2>游戏设置</h2>
+  <input type="file" id="csvFile" accept=".csv" style="display:none;">
+  <button id="csvBtn">导入单词 CSV</button>
+</div>
+
+<h1>👋拖动字母到横线处</h1>
+
+<div class="word-container">
+  <div class="letters" id="letters"></div>
+  <div class="slots" id="slots"></div>
+</div>
+
+<div class="input-container">
+  <input type="text" id="inputWord" placeholder="直接输入拼写">
+  <button id="submitBtn">提交</button>
+  <button id="hintBtn">提示</button>
+</div>
+
+<div class="feedback" id="feedback"></div>
+<div id="progress"></div>
+
+<div id="missedWords">
+  <strong>忘记咯：</strong>
+  <span id="missedList"></span>
+  <button id="retryMissedBtn" style="margin-left:10px; padding:5px 10px; font-size:14px; cursor:pointer;">重练</button>
+</div>
+
+<!-- 错误图片遮罩 -->
+<div id="errorOverlay">
+  <img src="error.png" alt="错误提示">
+</div>
+
+<!-- 音效 -->
+<audio id="successSound" src="success.mp3" preload="auto"></audio>
+<audio id="errorSound" src="error.mp3" preload="auto"></audio>
+
+<script>
+
+let words = [
+  {en:"apple", cn:"苹果"},
+  {en:"banana", cn:"香蕉"},
+  {en:"grape", cn:"葡萄"}
+];
+let currentIndex = 0;
+let currentWord = words[currentIndex].en.split('');
+let answerSlots = [];
+let missed = [];
+
+const lettersDiv = document.getElementById('letters');
+const slotsDiv = document.getElementById('slots');
+const feedbackDiv = document.getElementById('feedback');
+const progressDiv = document.getElementById('progress');
+const inputWord = document.getElementById('inputWord');
+const submitBtn = document.getElementById('submitBtn');
+const hintBtn = document.getElementById('hintBtn');
+const missedList = document.getElementById('missedList');
+const settingsOverlay = document.getElementById('settingsOverlay');
+const csvFile = document.getElementById('csvFile');
+const csvBtn = document.getElementById('csvBtn');
+const errorOverlay = document.getElementById('errorOverlay');
+
+const successSound = document.getElementById('successSound');
+const errorSound = document.getElementById('errorSound');
+
+function shuffle(array){ return array.sort(()=>Math.random()-0.5); }
+
+function updateMissedList(){
+  missedList.textContent = missed.join(', ');
+}
+
+function renderWord(){
+  feedbackDiv.style.opacity = 1;
+  feedbackDiv.textContent = '';
+  lettersDiv.innerHTML = '';
+  slotsDiv.innerHTML = '';
+  answerSlots = Array(currentWord.length).fill('');
+
+  const letters = shuffle([...currentWord]);
+  const areaW = 480, areaH = 260;
+  const placed = [];
+
+  letters.forEach(letter=>{
+    const span = document.createElement('div');
+    span.className = 'letter';
+    span.textContent = letter;
+    span.draggable = true;
+
+    let left, top, overlap;
+    const width = 60, height = 60;
+
+    do {
+      overlap = false;
+      left = Math.random() * (areaW - width);
+      top = Math.random() * (areaH - height);
+      for(const pos of placed){
+        if(!(left + width < pos.left || left > pos.left + width || 
+             top + height < pos.top || top > pos.top + height)){
+          overlap = true;
+          break;
+        }
+      }
+    } while(overlap);
+
+    placed.push({left, top});
+    span.style.left = left + 'px';
+    span.style.top = top + 'px';
+
+    span.addEventListener('dragstart', e => e.dataTransfer.setData('text', letter));
+    lettersDiv.appendChild(span);
+  });
+
+  for(let i=0; i<currentWord.length; i++){
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    slot.addEventListener('dragover', e => e.preventDefault());
+    slot.addEventListener('drop', e => {
+      const letter = e.dataTransfer.getData('text');
+      answerSlots[i] = letter;
+      slot.textContent = letter;
+      slot.classList.add('glow');
+      setTimeout(()=>slot.classList.remove('glow'),600);
+      checkSlots();
+    });
+    slotsDiv.appendChild(slot);
+  }
+
+  progressDiv.textContent = `已完成: ${currentIndex} / ${words.length}`;
+}
+
+function checkSlots(){
+  if(answerSlots.join('') === currentWord.join('')){
+    successSound.currentTime = 0;
+    successSound.play();
+    feedbackDiv.textContent = `正确！${words[currentIndex].cn}`;
+    document.querySelectorAll('.slot').forEach(s=>s.classList.add('flash'));
+    setTimeout(()=>{
+      document.querySelectorAll('.slot').forEach(s=>s.classList.remove('flash'));
+      nextWord();
+    }, 800);
+  }
+}
+
+function nextWord(){
+  currentIndex++;
+  if(currentIndex >= words.length){
+    feedbackDiv.textContent = '恭喜！已完成全部单词 ✨';
+    lettersDiv.innerHTML = '';
+    slotsDiv.innerHTML = '';
+    progressDiv.textContent = `已完成: ${words.length} / ${words.length}`;
+    return;
+  }
+  currentWord = words[currentIndex].en.split('');
+  renderWord();
+}
+
+submitBtn.addEventListener('click', ()=>{
+  if(inputWord.value.toLowerCase() === currentWord.join('')){
+    successSound.currentTime = 0;
+    successSound.play();
+    feedbackDiv.textContent = `正确！${words[currentIndex].cn}`;
+    document.querySelectorAll('.slot').forEach(s=>s.classList.add('flash'));
+    setTimeout(()=>{
+      document.querySelectorAll('.slot').forEach(s=>s.classList.remove('flash'));
+      inputWord.value='';
+      nextWord();
+    }, 800);
+  } else {
+    errorSound.currentTime = 0;
+    errorSound.play();
+    slotsDiv.classList.add('shake');
+    setTimeout(()=>slotsDiv.classList.remove('shake'),400);
+    errorOverlay.style.display = 'flex';
+    missed.push(words[currentIndex].en);
+    updateMissedList();
+  }
+});
+
+errorOverlay.addEventListener('click', ()=>{
+  errorOverlay.style.display = 'none';
+  inputWord.value = '';
+  nextWord();
+});
+
+hintBtn.addEventListener('click', ()=>{
+  if(words[currentIndex]){
+    feedbackDiv.textContent = `提示: ${words[currentIndex].cn}`;
+    feedbackDiv.style.opacity = 1;
+    setTimeout(()=>{ feedbackDiv.style.opacity = 0; }, 3000);
+  }
+});
+
+csvBtn.addEventListener('click', ()=> csvFile.click());
+
+csvFile.addEventListener('change', ()=>{
+  if(csvFile.files.length > 0){
+    const file = csvFile.files[0];
+    const reader = new FileReader();
+    reader.onload = e => {
+      const text = e.target.result;
+      const lines = text.split(/\r?\n/).filter(line=>line.trim());
+      words = lines.map(line=>{
+        const parts = line.split(',');
+        let en = parts[0].trim();
+        let cn = parts[1] ? parts[1].trim() : '';
+        if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
+        return {en, cn};
+      });
+      currentIndex = 0;
+      currentWord = words[currentIndex].en.split('');
+      settingsOverlay.style.display = 'none';
+      renderWord();
+    };
+    reader.readAsText(file);
+  }
+});
+const retryMissedBtn = document.getElementById('retryMissedBtn');
+
+retryMissedBtn.addEventListener('click', ()=>{
+  if(missed.length === 0){
+    alert('没有未答单词可重练！');
+    return;
+  }
+  // 把 missed 转成单词对象数组
+  words = missed.map(enWord => ({en: enWord, cn: ''})); // 中文如果你想保留，可以在导入 CSV 时记录
+  currentIndex = 0;
+  currentWord = words[currentIndex].en.split('');
+  missed = []; // 清空未答单词列表
+  updateMissedList();
+  renderWord();
+});
+
+</script>
+
+</body>
+</html>

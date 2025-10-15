@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TYPE — 快速定时打字游戏合集</title>
+  <style>
+    :root{--bg:#0b1020;--accent:#ffd166;--danger:#ff5c5c;--ok:#6ee7b7}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(180deg,#071029 0%, #0b1020 100%);color:#e8eef6;display:flex;justify-content:center;align-items:center;}
+    .app{width:960px;max-width:96vw;height:90vh;display:flex;flex-direction:column;gap:12px;}
+
+    .scene{position:relative;border-radius:12px;overflow:hidden;flex:6;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+    .scene.theme-bomb{background:linear-gradient(180deg,#1b0f0f,#2b1212)}
+    .scene.theme-rocket{background:linear-gradient(180deg,#041126,#09203a)}
+    .scene.theme-sub{background:linear-gradient(180deg,#001323,#00324a)}
+    .scene.theme-zombie{background:linear-gradient(180deg,#071316,#1b1a18)}
+    .scene.theme-volcano{background:linear-gradient(180deg,#2b0b00,#3a1a0d)}
+    .scene.theme-space{background:linear-gradient(180deg,#030217,#0b1632)}
+    .scene.theme-magic{background:linear-gradient(180deg,#0b0920,#241040)}
+    .scene.theme-skydive{background:linear-gradient(180deg,#0b2238,#5aa)}
+
+    .panel{flex:4;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.12));border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;}
+
+    .hintFlash{position:absolute;inset:18px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;background:rgba(0,0,0,0.25);backdrop-filter:blur(3px);z-index:5}
+    .chinese{position:relative;z-index:5;font-size:36px;font-weight:700;text-align:center;margin-top:40px}
+    .countdownBig{position:absolute;right:18px;top:18px;background:rgba(0,0,0,0.25);padding:10px 14px;border-radius:10px;font-weight:700;font-size:22px;z-index:6;} /* ✅ 确保倒计时在图片上方 */
+    .meter{position:absolute;left:18px;top:18px;background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:10px;font-weight:600;z-index:6;}
+
+    .wordTarget{font-size:18px;color:#bcd0e8}
+    .feedback{height:40px;display:flex;align-items:center;justify-content:center;font-size:18px}
+    .feedback.success{color:var(--ok)}
+    .feedback.fail{color:var(--danger)}
+
+    .inputWrap{display:flex;flex-direction:column;gap:12px;align-items:center}
+    #letters{display:flex;gap:6px;flex-wrap:nowrap;justify-content:center;margin-top:10px}
+
+    .btn{padding:10px 12px;border-radius:10px;background:var(--accent);color:#0b1020;font-weight:700;border:none;cursor:pointer}
+
+    .letterInput {
+      width:28px;
+      height:36px;
+      border-radius:6px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(255,255,255,0.03);
+      padding:6px 8px;
+      font-weight:700;
+      color:#eaf4ff;
+      font-size:18px;
+      text-transform:lowercase;
+      text-align:center;
+      outline:none;
+      border:none;
+      animation:pulseGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%,100% { box-shadow:0 0 4px rgba(255,255,255,0.3); }
+      50% { box-shadow:0 0 12px rgba(255,255,255,0.6); }
+    }
+
+    .letterInput.correct{background:rgba(110,231,183,0.15);color:var(--ok)}
+    .letterInput.wrong{background:rgba(255,92,92,0.12);color:var(--danger)}
+
+    .explode{animation:explode 700ms ease-out forwards}
+    @keyframes explode{0%{transform:scale(1);opacity:1}100%{transform:scale(1.6);opacity:0}}
+    .rocketLift{animation:lift 1200ms ease-in forwards}
+    @keyframes lift{0%{transform:translateY(0)}100%{transform:translateY(-380px);opacity:0}}
+
+    .bgLayer{position:absolute;top:0;left:0;width:100%;height:100%;background-size:cover;background-position:center center;z-index:0;opacity:1;transition:opacity 0.2s linear;}
+
+    /* ✅ 新增错词记录区 */
+    #wrongWords {
+      font-size:13px;
+      color:#ffb3b3;
+      border-top:1px solid rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.15); /* 浅色半透明背景 */
+      padding-top:6px;
+      overflow:auto;
+      max-height:60px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div id="scene" class="scene theme-bomb">
+      <div class="hintFlash" id="flash" style="display:none">flash</div>
+      <div class="countdownBig" id="countdown">--</div>
+      <div class="meter" id="themeLabel">Theme</div>
+      <div style="position:relative;z-index:4">
+        <div class="chinese" id="chinese">——</div>
+      </div>
+      <div id="sceneEffect" style="position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:center;pointer-events:none"></div>
+    </div>
+
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:13px;color:#bcd0e8">已连续成功：<span id="streak">0</span></div>
+      </div>
+
+      <div class="inputWrap">
+        <button id="startBtn" class="btn">开始</button>
+        <div id="letters"></div>
+      </div>
+
+      <div class="feedback" id="feedback">点击“开始”随机开始一局</div>
+
+      <div style="font-size:13px;color:#9fb4d9">说明：先闪两秒中英文，然后只显示中文。倒计时结束前拼写正确可过关。</div>
+
+      <!-- ✅ 新增错词记录区 -->
+      <div id="wrongWords">错词记录：</div>
+    </div>
+  </div>
+
+  <script>
+    // ✅ 音效设置
+    const successSound = new Audio('sounds/success.mp3');
+    const failSounds = {
+      bomb: new Audio('sounds/bomb_fail.mp3'),
+      rocket: new Audio('sounds/rocket_fail.mp3'),
+      sub: new Audio('sounds/sub_fail.mp3'),
+      zombie: new Audio('sounds/zombie_fail.mp3'),
+      volcano: new Audio('sounds/volcano_fail.mp3'),
+      space: new Audio('sounds/space_fail.mp3'),
+      magic: new Audio('sounds/magic_fail.mp3'),
+      skydive: new Audio('sounds/skydive_fail.mp3')
+    };
+
+    const wrongWordsEl = document.getElementById('wrongWords');
+    const WORDS=[["apple","苹果"],["rocket","火箭"],["submarine","潜艇"],["zombie","僵尸"],["volcano","火山"],["oxygen","氧气"],["magic","魔法"],["parachute","降落伞"],["defuse","拆除"],["launch","发射"],["escape","逃生"],["repair","修理"],["rescue","救援"],["danger","危险"],["timer","定时器"]];
+    const THEMES=[{id:'bomb',name:'拆除炸弹',time:10},{id:'rocket',name:'火箭发射',time:8},{id:'sub',name:'水下逃生',time:10},{id:'zombie',name:'僵尸来袭',time:6},{id:'volcano',name:'火山逃跑',time:7},{id:'space',name:'太空修复',time:9},{id:'magic',name:'魔法对决',time:8},{id:'skydive',name:'高空坠落',time:10}];
+
+    const scene=document.getElementById('scene'),
+          flash=document.getElementById('flash'),
+          chineseEl=document.getElementById('chinese'),
+          countdownEl=document.getElementById('countdown'),
+          themeLabel=document.getElementById('themeLabel'),
+          lettersWrap=document.getElementById('letters'),
+          startBtn=document.getElementById('startBtn'),
+          feedback=document.getElementById('feedback'),
+          sceneEffect=document.getElementById('sceneEffect'),
+          streakEl=document.getElementById('streak');
+
+    let current=null,timer=null,remain=0,streak=0;
+
+    // ---------- 预设（不强制使用）: 主题背景路径（你可以留着或替换为你的路径） ----------
+    const THEME_IMAGES = {
+      bomb: ['images/bomb1.png','images/bomb2.png','images/bomb3.png'],
+      rocket: ['images/rocket1.png','images/rocket2.png','images/rocket3.png'],
+      sub: ['images/sub1.png','images/sub2.png','images/sub3.png'],
+      zombie: ['images/zombie1.png','images/zombie2.png','images/zombie3.png'],
+      volcano: ['images/volcano1.png','images/volcano2.png','images/volcano3.png'],
+      space: ['images/space1.png','images/space2.png','images/space3.png'],
+      magic: ['images/magic1.png','images/magic2.png','images/magic3.png'],
+      skydive: ['images/skydive1.png','images/skydive2.png','images/skydive3.png']
+    };
+    // --------------------------------------------------------------------------------
+
+
+    // 新增：背景动画控制引用
+    let _bgFrame = null;
+    let _bgBase = null;
+    let _bgNext = null;
+
+    // 简单的图片存在检测（返回 Promise<boolean>）
+    function imageExists(src){
+      return new Promise(resolve=>{
+        const img=new Image();
+        img.onload = ()=> resolve(true);
+        img.onerror = ()=> resolve(false);
+        img.src = src;
+      });
+    }
+
+    // 自动检测并返回图片数组（会尝试若干命名规则），最多尝试 maxIndex 个序号
+    async function detectImagesForTheme(themeId, maxIndex = 8){
+      const exts = ['png','jpg','jpeg','webp'];
+      const results = [];
+      let consecutiveMiss = 0;
+      for(let i=1;i<=maxIndex && consecutiveMiss < 3;i++){
+        let found = false;
+        // 尝试多种常见文件名布局
+        const patterns = [
+          `images/${themeId}${i}`,     // images/bomb1.png
+          `images/${themeId}/${i}`,    // images/bomb/1.png
+          `images/${themeId}_${i}`,    // images/bomb_1.png
+          `images/${i}`,               // images/1.png （不太常见）
+        ];
+        for(const p of patterns){
+          for(const ext of exts){
+            const path = `${p}.${ext}`;
+            // eslint-disable-next-line no-await-in-loop
+            const ok = await imageExists(path);
+            if(ok){ results.push(path); found = true; break; }
+          }
+          if(found) break;
+        }
+        if(!found) consecutiveMiss++; else consecutiveMiss = 0;
+      }
+      return results;
+    }
+
+    // 启动平滑背景渐变（使用已准备好的 images 数组）
+    function startBackgroundAnimationWithImages(images, durationSec){
+      stopBackgroundAnimation(); // 先停止旧动画
+
+      if(!images || images.length === 0) return;
+
+      // 创建或复用两层背景
+      _bgBase = document.createElement('div');
+      _bgBase.className = 'bgLayer';
+      _bgBase.style.zIndex = 0;
+      _bgBase.style.opacity = 1;
+      _bgBase.style.backgroundImage = `url('${images[0]}')`;
+      scene.appendChild(_bgBase);
+
+      _bgNext = document.createElement('div');
+      _bgNext.className = 'bgLayer';
+      _bgNext.style.zIndex = 0;
+      _bgNext.style.opacity = 0;
+      _bgNext.style.backgroundImage = images.length > 1 ? `url('${images[1]}')` : `url('${images[0]}')`;
+      scene.appendChild(_bgNext);
+
+      const start = performance.now();
+      const lastIndex = images.length - 1;
+
+      function animate(now){
+        const elapsed = now - start;
+        const t = Math.min(elapsed / (durationSec * 1000), 1); // 0..1
+        const exactIndex = t * lastIndex;
+        const lower = Math.floor(exactIndex);
+        const upper = Math.min(lower + 1, lastIndex);
+        const frac = exactIndex - lower;
+
+        // 更新背景图层内容（避免频繁创建节点）
+        _bgBase.style.backgroundImage = `url('${images[lower]}')`;
+        _bgNext.style.backgroundImage = `url('${images[upper]}')`;
+        _bgNext.style.opacity = frac;
+
+        if(t < 1){
+          _bgFrame = requestAnimationFrame(animate);
+        } else {
+          // 结束时保留最后一帧，清理另一层
+          _bgBase.style.backgroundImage = `url('${images[lastIndex]}')`;
+          _bgNext.style.opacity = 0;
+          // 不立即移除，让 DOM 结构稳定；下一次 start 会 cleanup
+          _bgFrame = null;
+        }
+      }
+
+      _bgFrame = requestAnimationFrame(animate);
+    }
+
+    // 停止并移除背景动画层
+    function stopBackgroundAnimation(){
+      if(_bgFrame) { cancelAnimationFrame(_bgFrame); _bgFrame = null; }
+      if(_bgBase){ try{ scene.removeChild(_bgBase); }catch(e){} _bgBase = null; }
+      if(_bgNext){ try{ scene.removeChild(_bgNext); }catch(e){} _bgNext = null; }
+    }
+
+    // 如果有检测到图片，使用检测结果；否则使用预设 THEME_IMAGES 作为回退
+    async function detectAndStartBg(themeId, durationSec){
+      // 先尝试检测（异步），如果失败则用预设
+      const detected = await detectImagesForTheme(themeId, 8);
+      const images = (detected && detected.length) ? detected : (THEME_IMAGES[themeId] || []);
+      if(images && images.length) {
+        startBackgroundAnimationWithImages(images, durationSec);
+      } else {
+        // 没图片可用时，确保没有残留动画（保留原本的主题渐变样式）
+        stopBackgroundAnimation();
+      }
+    }
+
+    function pickRandomWord(){return WORDS[Math.floor(Math.random()*WORDS.length)];}
+    function pickRandomTheme(){return THEMES[Math.floor(Math.random()*THEMES.length)];}
+    function setThemeVisual(themeId){scene.className='scene theme-'+themeId;themeLabel.textContent=THEMES.find(t=>t.id===themeId).name;}
+    function showFlash(eng,chi){flash.style.display='flex';flash.textContent=eng+'  -  '+chi;setTimeout(()=>{flash.style.display='none';},2000);}
+
+    function renderLettersInputs(target){
+      lettersWrap.innerHTML='';
+      for(let i=0;i<target.length;i++){
+        const input=document.createElement('input');
+        input.className='letterInput';
+        input.maxLength=1;
+        lettersWrap.appendChild(input);
+      }
+      const inputs=lettersWrap.querySelectorAll('input');
+      inputs.forEach((input,idx)=>{
+        input.addEventListener('input',e=>{
+          const val=e.target.value.toLowerCase();
+          if(val && idx<inputs.length-1)inputs[idx+1].focus();
+          checkProgress();
+        });
+        input.addEventListener('keydown',e=>{
+          if(e.key==='Backspace' && !input.value && idx>0){inputs[idx-1].focus();}
+          if(e.key==='Enter'){checkProgress(); onTimeUp();}
+        });
+      });
+      inputs[0].focus();
+    }
+
+    function startRound(){
+      feedback.textContent='准备中...';
+      const [eng,chi]=pickRandomWord();
+      const theme=pickRandomTheme();
+      current={eng,chi,theme};
+      setThemeVisual(theme.id);
+      showFlash(eng,chi);
+      chineseEl.textContent=chi;
+      setTimeout(()=>{
+        renderLettersInputs(eng);
+        feedback.textContent='开始拼写...';
+        remain=theme.time;
+        countdownEl.textContent=remain+'s';
+        if(timer) { clearInterval(timer); timer=null; }
+        // 停止旧的背景动画（如果有）
+        stopBackgroundAnimation();
+
+        // 启动新的计时器
+        timer=setInterval(()=>{
+          if(remain>0){
+            remain-=1;
+            countdownEl.textContent=remain+'s';
+            // （不再每秒切换图片）——背景动画由 detectAndStartBg 一次性启动并根据总时长平滑播放
+          } else {
+            clearInterval(timer);
+            timer=null;
+            countdownEl.textContent='0s';
+            onTimeUp();
+          }
+        },1000);
+
+        // 异步检测并启动背景平滑动画（不会阻塞主流程）
+        detectAndStartBg(current.theme.id, current.theme.time);
+
+      },2000);
+    }
+
+    function getTypedWord(){
+      return Array.from(lettersWrap.querySelectorAll('input')).map(i=>i.value).join('');
+    }
+
+    function checkProgress(){
+      const typed = getTypedWord();
+      const target = current.eng;
+      const inputs = lettersWrap.querySelectorAll('input');
+
+      // 每次输入时，如果之前标记过错词，但现在拼写正确，清除错词记录标记
+      if(current.wrongRecorded && typed.toLowerCase() === target.toLowerCase()){
+        current.wrongRecorded = false;
+      }
+
+      for(let i=0;i<inputs.length;i++){
+        inputs[i].classList.remove('correct','wrong');
+        if(i<typed.length){
+          if(typed[i].toLowerCase()===target[i].toLowerCase()) inputs[i].classList.add('correct');
+          else inputs[i].classList.add('wrong');
+        }
+      }
+
+      if(typed.toLowerCase() === target.toLowerCase()){
+        if(timer){ clearInterval(timer); timer=null; }
+        onSuccess();
+      }
+    }
+
+    function onTimeUp(){
+      const typed=getTypedWord();
+      if(typed.toLowerCase()===current.eng.toLowerCase())onSuccess();
+      else onFail();
+    }
+
+    function onSuccess(){ 
+      // 新增：停止背景动画，保持原有逻辑不变
+      stopBackgroundAnimation();
+      feedback.className='feedback success';feedback.textContent='成功！过关。';streak+=1;streakEl.textContent=streak;runEffect(true);
+    }
+    function onFail(){ 
+      // 新增：停止背景动画，保持原有逻辑不变
+      stopBackgroundAnimation();
+      feedback.className='feedback fail';feedback.textContent='失败...超时或拼写错误';streak=0;streakEl.textContent=streak;runEffect(false);
+    }
+
+    function runEffect(success){
+    sceneEffect.innerHTML = '';
+    const theme = current.theme.id;
+
+    // 优先显示图片
+    const THEME_EFFECT_IMAGES = {
+      bomb: { success: 'images/bomb_success.png', fail: 'images/bomb_fail.png' },
+      rocket: { success: 'images/rocket_success.png', fail: 'images/rocket_fail.png' },
+      sub: { success: 'images/sub_success.png', fail: 'images/sub_fail.png' },
+      zombie: { success: 'images/zombie_success.png', fail: 'images/zombie_fail.png' },
+      volcano: { success: 'images/volcano_success.png', fail: 'images/volcano_fail.png' },
+      space: { success: 'images/space_success.png', fail: 'images/space_fail.png' },
+      magic: { success: 'images/magic_success.png', fail: 'images/magic_fail.png' },
+      skydive: { success: 'images/skydive_success.png', fail: 'images/skydive_fail.png' }
+    };
+
+    if(THEME_EFFECT_IMAGES[theme]){
+      const img = document.createElement('img');
+      img.src = success ? THEME_EFFECT_IMAGES[theme].success : THEME_EFFECT_IMAGES[theme].fail;
+      img.style.maxWidth = '120px';
+      img.style.maxHeight = '120px';
+      img.style.borderRadius = '12px';
+      img.style.boxShadow = '0 6px 30px rgba(0,0,0,.6)';
+      sceneEffect.appendChild(img);
+    } else {
+      // fallback 文字/emoji
+      if(theme==='bomb'){const bomb=document.createElement('div');bomb.style.width='120px';bomb.style.height='120px';bomb.style.borderRadius='50%';bomb.style.background='radial-gradient(circle,#ff7b7b,#8b0a0a)';bomb.style.display='flex';bomb.style.alignItems='center';bomb.style.justifyContent='center';bomb.style.fontWeight='700';bomb.style.boxShadow='0 6px 30px rgba(0,0,0,.6)';bomb.textContent=success?'SAFE':'BOOM';if(!success){bomb.classList.add('explode');}sceneEffect.appendChild(bomb);}
+      else if(theme==='rocket'){const r=document.createElement('div');r.textContent='🚀';r.style.fontSize='64px';if(success)r.classList.add('rocketLift');sceneEffect.appendChild(r);}
+      else if(theme==='sub'){const s=document.createElement('div');s.textContent=success?'🚿 排水完成':'🌊 淹没';s.style.fontSize='28px';sceneEffect.appendChild(s);}
+      else if(theme==='zombie'){const z=document.createElement('div');z.textContent=success?'✨ 护符点亮':'🧟‍♂️ 僵尸来袭';z.style.fontSize='28px';sceneEffect.appendChild(z);}
+      else if(theme==='volcano'){const v=document.createElement('div');v.textContent=success?'🏃‍♀️ 跑上安全岩石':'🌋 岩浆爆发';v.style.fontSize='28px';sceneEffect.appendChild(v);}
+      else if(theme==='space'){const sp=document.createElement('div');sp.textContent=success?'🔧 修复完成':'🫧 氧气耗尽';sp.style.fontSize='28px';sceneEffect.appendChild(sp);}
+      else if(theme==='magic'){const m=document.createElement('div');m.textContent=success?'✨ 咒语成功':'⚡ 反噬';m.style.fontSize='28px';sceneEffect.appendChild(m);}
+      else if(theme==='skydive'){const sd=document.createElement('div');sd.textContent=success?'🪂 降落伞打开':'💥 坠落失败';sd.style.fontSize='28px';sceneEffect.appendChild(sd);}
+    }
+  }
+
+
+    startBtn.addEventListener('click',()=>{sceneEffect.innerHTML='';feedback.className='feedback';feedback.textContent='准备...';startRound();});
+
+
+    // 覆盖 onSuccess / onFail 播放音效 + 记录错词
+    const oldOnSuccess = onSuccess;
+    const oldOnFail = onFail;
+
+    onSuccess = function(){
+      oldOnSuccess();
+      successSound.currentTime = 0;
+      successSound.play();
+    };
+
+    onFail = function(){
+      oldOnFail(); // 保留原有背景动画、UI 逻辑
+      const themeId = current.theme.id;
+      const audio = failSounds[themeId];
+      if(audio){
+        audio.currentTime = 0;
+        audio.play();
+      }
+
+      // ✅ 只记录一次错词，且保证用户改正后不再记录
+      if(!current.wrongRecorded){
+        const typed = getTypedWord();
+        if(typed.toLowerCase() !== current.eng.toLowerCase()){ // 只有真正拼错才记录
+          const word = current.eng;
+          if(word){
+            const item = document.createElement('div');
+            item.textContent = '❌ ' + word;
+            wrongWordsEl.appendChild(item);
+          }
+          current.wrongRecorded = true; // 标记已记录
+        }
+      }
+    };
+  </script>
+</body>
+</html>
