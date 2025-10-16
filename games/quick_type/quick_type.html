@@ -113,6 +113,7 @@
     </div>
   </div>
 
+
   <script>
     const successSound = new Audio('sounds/success.mp3');
     const failSounds = {
@@ -143,6 +144,7 @@
 
     let current=null,timer=null,remain=0,streak=0;
     let _bgFrame = null, _bgBase = null, _bgNext = null;
+    let currentTheme = null; // 🔹新增：当前主题保持变量
 
     // ---------- 背景图片 ----------
     const THEME_IMAGES = {
@@ -203,13 +205,14 @@
 
     // ------------------ CSV 导入单词 ------------------
     let importedWords = [];
+    let remainingWords = []; // ✅ 新增：保存当前还没答对的单词
 
     function pickRandomWord() {
-      if (importedWords.length === 0) {
-        alert('请先导入单词 CSV 文件！');
+      if (remainingWords.length === 0) {
+        alert('🎉 所有单词都已完成！请重新导入或刷新页面。');
         return null;
       }
-      return importedWords[Math.floor(Math.random() * importedWords.length)];
+      return remainingWords[Math.floor(Math.random() * remainingWords.length)];
     }
 
     const csvInput = document.getElementById('csvInput');
@@ -223,7 +226,7 @@
       const reader = new FileReader();
       reader.onload = evt => {
         const lines = evt.target.result.split(/\r?\n/).filter(l => l.trim() !== '');
-        importedWords = []; // 每次导入覆盖旧单词
+        importedWords = [];
         for (const line of lines) {
           const parts = line.split(',');
           if (parts.length < 2) continue;
@@ -242,6 +245,7 @@
           importedWords.push([eng, chi]);
         }
         alert(`已成功导入 ${importedWords.length} 个单词`);
+        remainingWords = [...importedWords]; // ✅ 初始化剩余单词列表
       };
       reader.readAsText(file, 'UTF-8');
     });
@@ -275,15 +279,16 @@
       if (!wordPair) return;
       feedback.textContent='准备中...';
       const [eng,chi] = wordPair;
-      const theme=pickRandomTheme();
-      current={eng,chi,theme};
-      setThemeVisual(theme.id);
+      // 🔹 保持上一个主题不变
+      if (!currentTheme) currentTheme = pickRandomTheme();
+      current={eng,chi,theme:currentTheme};
+      setThemeVisual(currentTheme.id);
       showFlash(eng,chi);
       chineseEl.textContent=chi;
       setTimeout(()=>{
         renderLettersInputs(eng);
         feedback.textContent='开始拼写...';
-        remain=theme.time;
+        remain=currentTheme.time;
         countdownEl.textContent=remain+'s';
         if(timer){ clearInterval(timer); timer=null; }
         stopBackgroundAnimation();
@@ -324,6 +329,8 @@
     function onSuccess(){
       feedback.className='feedback success';
       feedback.textContent='成功！过关。';
+      // ✅ 从剩余单词中移除当前已答对的
+      remainingWords = remainingWords.filter(([eng, chi]) => eng !== current.eng);
       successSound.play();
       streak++;streakEl.textContent=streak;
 
@@ -331,6 +338,9 @@
       startBackgroundAnimationWithImages(successImages, 1.2);
 
       sceneEffect.innerHTML=`<div class="${current.theme.id==='rocket'?'rocketLift':'explode'}"></div>`;
+
+      // 🔹 倒计时重置并进入下一个单词
+      setTimeout(()=>{ startRound(); }, 1200);
     }
 
     function onFail(){
@@ -350,6 +360,19 @@
       startBackgroundAnimationWithImages(failImages, 1.2);
 
       sceneEffect.innerHTML=`<div class="explode"></div>`;
+
+      // ✅ 新增逻辑：答错后切换主题
+      const newTheme = (() => {
+        let t;
+        do { t = pickRandomTheme(); }
+        while (t.id === current.theme.id);
+        return t;
+      })();
+      currentTheme = newTheme; // 更新当前主题
+      setThemeVisual(newTheme.id);
+
+      // ✅ 延迟后自动切换到下一个单词
+      setTimeout(()=>{ startRound(); }, 1200);
     }
 
     function pickRandomTheme(){return THEMES[Math.floor(Math.random()*THEMES.length)];}
@@ -366,6 +389,10 @@
     }
 
     startBtn.addEventListener('click',startRound);
+
+
+
   </script>
+
 </body>
 </html>
