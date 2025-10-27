@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>单词商店 Word Shop</title>
+<style>
+  body {
+    background: linear-gradient(#f7f2e7, #f0e2c5);
+    font-family: "Comic Sans MS", sans-serif;
+    text-align: center;
+    padding: 20px;
+  }
+  h1 { color: #5a4633; margin-bottom: 10px; }
+
+  #window-area {
+    background: #e1f3ff;
+    border: 5px solid #a6c9e2;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 15px 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  }
+
+  #window {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin: 20px auto;
+    width: 90%;
+    max-width: 800px;
+    flex-wrap: wrap;
+  }
+
+  .customer {
+    width: 200px;
+    height: 150px;
+    background: #fff8dc;
+    border: 3px solid #d4a373;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 16px;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    padding: 8px;
+    position: relative;
+  }
+  .customer.happy { background: #d0f5be; }
+  .customer.angry { background: #ffc6c6; }
+
+  .bar {
+    width: 80%;
+    height: 12px;
+    background: #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 5px;
+  }
+  .bar-inner {
+    width: 100%;
+    height: 100%;
+    background: #91d18b;
+    transition: width 0.3s linear;
+  }
+
+  #counter {
+    background: #f9efe0;
+    border-top: 8px solid #d4a373;
+    border-radius: 20px 20px 0 0;
+    width: 95%;
+    max-width: 950px;
+    margin: 30px auto 0;
+    padding-top: 15px;
+    box-shadow: inset 0 5px 10px rgba(0,0,0,0.1);
+  }
+
+  #shelf {
+    background: #fff7d1;
+    border: 4px solid #d4a373;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 800px;
+    margin: 10px auto 20px;
+    padding: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: inset 0 3px 6px rgba(0,0,0,0.1);
+  }
+
+  .item {
+    width: 120px;
+    height: 70px;
+    background: #fffbe0;
+    border: 2px solid #d4a373;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 20px;
+    transition: all 0.2s;
+  }
+  .item:hover {
+    background: #ffe8a1;
+    transform: scale(1.1);
+  }
+
+  #message {
+    font-size: 20px;
+    margin-top: 10px;
+    min-height: 26px;
+  }
+  #score {
+    margin-top: 15px;
+    font-size: 22px;
+    color: #333;
+  }
+  button {
+    margin-top: 20px;
+    padding: 10px 25px;
+    border: none;
+    background: #d4a373;
+    color: white;
+    font-size: 18px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  button:hover { background: #c08457; }
+
+  #shop {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  #endScreen {
+    position: fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background: rgba(0,0,0,0.8);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    display:none;
+    cursor:pointer;
+    z-index: 999;
+  }
+  #endScreen img {
+    max-width:80%;
+    max-height:80%;
+  }
+
+  /* 固定槽位，保证顾客位置不会因 DOM 删除而重排 */
+  .customer-slot {
+    width: 200px;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 200px; /* 保持宽度不变 */
+  }
+</style>
+</head>
+<body>
+<h1>🛒 单词商店 Word Shop</h1>
+
+<div id="window-area"><div id="window"></div></div>
+<div id="counter">
+  <h2>我的柜台</h2>
+  <div id="shelf"><div id="shop"></div></div>
+</div>
+<div id="message"></div>
+<div id="score">得分：0</div>
+
+<button id="pauseBtn">暂停游戏 ⏸️</button>
+<input type="file" id="csvInput" accept=".csv" style="display:none;">
+<button id="importBtn">导入 CSV 📥</button>
+
+<!-- 🎵 新增背景音乐按钮 -->
+<button id="musicBtn">播放音乐 🎶</button>
+<audio id="bgm" src="music/bg.mp3" loop></audio>
+
+<div id="endScreen"><img src="https://cdn-icons-png.flaticon.com/512/190/190411.png"></div>
+
+<script>
+let words = [];
+let score = 0;
+let customersQueue = [];
+let activeCustomers = [];
+let timers = [];
+let isPaused = false;
+let gameStarted = false;
+let correctAnswers = 0;
+let totalCustomers = 0;
+
+
+const windowDiv = document.getElementById("window");
+const shopDiv = document.getElementById("shop");
+const scoreDiv = document.getElementById("score");
+const endScreen = document.getElementById("endScreen");
+
+
+// 🎵 背景音乐逻辑
+const music = document.getElementById("bgm");
+const musicBtn = document.getElementById("musicBtn");
+let musicPlaying = false;
+music.volume = 0.4; // 调整音量
+
+musicBtn.addEventListener("click", () => {
+  if (!musicPlaying) {
+    music.play();
+    musicBtn.textContent = "暂停音乐 🔇";
+  } else {
+    music.pause();
+    musicBtn.textContent = "播放音乐 🎶";
+  }
+  musicPlaying = !musicPlaying;
+});
+
+
+document.getElementById("pauseBtn").addEventListener("click", () => {
+  isPaused = !isPaused;
+  document.getElementById("pauseBtn").textContent = isPaused ? "继续游戏 ▶️" : "暂停游戏 ⏸️";
+});
+
+// CSV 导入
+const csvInput = document.getElementById("csvInput");
+document.getElementById("importBtn").addEventListener("click", () => csvInput.click());
+csvInput.addEventListener("change", () => {
+  const file = csvInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    const lines = text.split(/\r?\n/);
+    words = [];
+    for (let line of lines) {
+      if (!line.trim()) continue;
+      const [en, cn] = line.split(",");
+      if (en && cn) words.push({ en: en.trim(), cn: cn.trim() });
+    }
+
+    // 新：限制最多 15 对
+    if (words.length === 0) {
+      alert("请至少导入1对单词！");
+      return;
+    }
+    if (words.length > 15) {
+      alert(`你导入了 ${words.length} 对单词，最多允许 15 对，请删减后重新导入。`);
+      words = [];
+      return;
+    }
+
+    // 成功导入（1–15 对）
+    gameStarted = true;
+    prepareCustomers();
+    spawnCustomers();
+  };
+  reader.readAsText(file, "utf-8");
+});
+
+// 准备顾客队列
+function prepareCustomers() {
+  customersQueue = [];
+  const selectedWords = [];
+
+  // 使用导入的实际数量（最多 15）
+  const wordCount = Math.min(words.length, 15);
+
+  // 取前 wordCount 个（或可以改为随机挑选）
+  for (let i = 0; i < wordCount; i++) {
+    selectedWords.push(words[i]);
+  }
+
+  // 每个单词生成两种顾客（中→英、英→中）
+  selectedWords.forEach(w => {
+    customersQueue.push({ need: w.en, want: w.cn });
+    customersQueue.push({ need: w.cn, want: w.en });
+  });
+
+  // 打乱顺序
+  customersQueue.sort(() => Math.random() - 0.5);
+
+  // ✅ 新增：记录顾客总数
+  totalCustomers = customersQueue.length;
+}
+
+// 生成最多3个顾客（使用固定槽位，不会让已有顾客移动）
+function spawnCustomers() {
+  clearAllTimers();
+  windowDiv.innerHTML = "";
+  activeCustomers = [];
+  for (let i = 0; i < 3; i++) {
+    const slot = document.createElement("div");
+    slot.className = "customer-slot";
+    slot.dataset.occupied = "false";
+    windowDiv.appendChild(slot);
+  }
+  const toShow = customersQueue.splice(0, 3);
+  toShow.forEach(obj => addCustomer(obj));
+  renderShelf();
+}
+
+// 添加顾客到屏幕
+function addCustomer(obj){
+  const slots = Array.from(windowDiv.querySelectorAll(".customer-slot"));
+  const freeSlot = slots.find(s => s.dataset.occupied === "false");
+  let slotToUse = freeSlot || document.createElement("div");
+  slotToUse.className = "customer-slot";
+  slotToUse.dataset.occupied = "false";
+  const div = document.createElement("div");
+  div.className="customer";
+  div.dataset.answer=obj.want;
+  div.dataset.done="false";
+
+  // ⭐ 随机顾客样子 + 默认表情
+  const faceId = Math.floor(Math.random() * 3) + 1;
+  div.dataset.faceId = faceId;
+  const img = document.createElement("img");
+  img.src = `faces/c${faceId}_normal.png`;
+  img.style.width = "80px";
+  img.style.height = "80px";
+  div.appendChild(img);
+
+  const bar=document.createElement("div"); bar.className="bar";
+  const inner=document.createElement("div"); inner.className="bar-inner";
+  bar.appendChild(inner);
+
+  const text=document.createElement("div");
+  text.textContent = obj.need.match(/[\u4e00-\u9fa5]/) ? `我要买 “${obj.need}” 的英文！` : `我要买 “${obj.need}” 的中文！`;
+
+  div.appendChild(bar); div.appendChild(text);
+
+  slotToUse.appendChild(div);
+  slotToUse.dataset.occupied = "true";
+  activeCustomers.push({obj, div, slot: slotToUse});
+
+  div.addEventListener("dragover", e=>e.preventDefault());
+  div.addEventListener("drop", e=>{
+    e.preventDefault();
+    const selected=e.dataTransfer.getData("text/plain");
+    handleDrop(selected, div, obj);
+  });
+
+  let patience=100;
+  const timer=setInterval(()=>{
+    if(isPaused) return;
+    if(div.dataset.done==="true"){ clearInterval(timer); return; }
+    patience-=2; inner.style.width=patience+"%";
+    if (patience > 60) inner.style.background = "#91d18b";       // 绿
+    else if (patience > 30) inner.style.background = "#ffd166";  // 黄
+    else inner.style.background = "#ff5c5c";                     // 红
+    if(patience<=0){
+      clearInterval(timer);
+      div.classList.add("angry");
+      // ⭐ 生气表情
+      const faceId = div.dataset.faceId;
+      const imgTag = div.querySelector("img");
+      if (imgTag) imgTag.src = `faces/c${faceId}_angry.png`;
+
+      div.dataset.done="true";
+      // 保证最后一个子节点存在
+      if (div.lastChild) div.lastChild.textContent="哼！太慢了！😠";
+      score = Math.round((correctAnswers / totalCustomers) * 100);
+      updateScore();
+      customersQueue.push(obj);
+      setTimeout(checkNextBatch,500);
+    }
+  },400);
+  timers.push(timer);
+}
+
+// 处理拖放
+function handleDrop(selected, div, obj){
+  if(isPaused || div.dataset.done==="true") return;
+  if(selected === obj.want){
+    div.classList.add("happy");
+    // ⭐ 开心表情
+    const faceId = div.dataset.faceId;
+    const imgTag = div.querySelector("img");
+    if (imgTag) imgTag.src = `faces/c${faceId}_happy.png`;
+
+    div.dataset.done = "true";
+    if (div.lastChild) div.lastChild.textContent = "谢谢！😊"; 
+    correctAnswers++;
+    score = Math.round((correctAnswers / totalCustomers) * 100);
+
+    const items = Array.from(shopDiv.children);
+    let removedCount = 0;
+    for (let it of items) {
+      if ((it.textContent === obj.need || it.textContent === obj.want) && removedCount < 1) {
+        shopDiv.removeChild(it);
+        removedCount++;
+      }
+    }
+
+    // 补充货架：当词源有限时允许重复填充，避免死循环
+    const maxItems = 18;
+    const allWords = words.flatMap(w => [w.en, w.cn]);
+    // 若 allWords 只有少数项，也可以重复出现
+    while (shopDiv.children.length < maxItems && allWords.length > 0) {
+      const newWord = allWords[Math.floor(Math.random() * allWords.length)];
+      const divItem = document.createElement("div");
+      divItem.className = "item";
+      divItem.textContent = newWord;
+      divItem.setAttribute("draggable", "true");
+      divItem.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", newWord));
+      shopDiv.appendChild(divItem);
+    }
+
+    checkNextBatch();
+  } else {
+    const tempDiv = document.createElement("div");
+    tempDiv.textContent = "❌ 没有顾客要这个。";
+    tempDiv.style.position = "absolute";
+    tempDiv.style.top = "10px";
+    tempDiv.style.background = "#ffc6c6";
+    tempDiv.style.padding = "2px 5px";
+    tempDiv.style.borderRadius = "5px";
+    tempDiv.style.fontSize = "14px";
+    tempDiv.style.color = "#900";
+    div.appendChild(tempDiv);
+    setTimeout(() => {
+      if (div.contains(tempDiv)) div.removeChild(tempDiv);
+    }, 2000);
+  }
+  updateScore();
+}
+
+// 检查是否显示下一批
+function checkNextBatch(){
+  const toRemove = [];
+  activeCustomers.forEach(c=>{
+    if(c.div.dataset.done==="true" && !c.div.dataset.removed){
+      c.div.dataset.removed = "true";
+      setTimeout(()=>{
+        if (c.slot && c.slot.contains(c.div)) {
+          c.slot.removeChild(c.div);
+          c.slot.dataset.occupied = "false";
+        } else if (windowDiv.contains(c.div)) {
+          windowDiv.removeChild(c.div);
+        }
+        toRemove.push(c);
+        if(customersQueue.length>0){
+          const delay = 4000;
+          setTimeout(()=>{
+            const next = customersQueue.shift();
+            if(next) addCustomer(next);
+            renderShelf();
+          }, delay);
+        } else {
+          const stillActive = activeCustomers.filter(ac => !toRemove.includes(ac));
+          if(customersQueue.length===0 && stillActive.length===0){
+            endScreen.style.display="flex";
+            endScreen.onclick = ()=>location.reload();
+          }
+        }
+      }, 2000);
+    }
+  });
+
+  if(toRemove.length>0){
+    activeCustomers = activeCustomers.filter(ac => !toRemove.includes(ac));
+  }
+}
+
+// 渲染货架
+function renderShelf() {
+  shopDiv.innerHTML = "";
+  const maxItems = 3 * 6; // 3行，每行6个单词
+  const allWords = words.flatMap(w => [w.en, w.cn]);
+
+  // activeNeeds 可能为空
+  const activeNeeds = activeCustomers.map(c => [c.obj.need, c.obj.want]).flat();
+
+  // 先把 activeNeeds 随机放到某些位置（如果 activeNeeds 太多也要容错）
+  const shelfWords = new Array(maxItems).fill(null);
+  const positions = Array.from({length: maxItems}, (_,i)=>i);
+  // shuffle positions
+  for (let i = positions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [positions[i], positions[j]] = [positions[j], positions[i]];
+  }
+  // 放置答案（若 activeNeeds 超过 maxItems，则只放前 maxItems 个）
+  const toPlaceAnswers = activeNeeds.slice(0, maxItems);
+  toPlaceAnswers.forEach((answer, idx) => {
+    shelfWords[positions[idx]] = answer;
+  });
+
+  // 填充其他随机单词到空位（允许重复，避免死循环）
+  for (let i = 0; i < maxItems; i++) {
+    if (!shelfWords[i]) {
+      if (allWords.length === 0) {
+        shelfWords[i] = ""; // 保底空字符串（不会发生，因为导入至少 1 对）
+      } else {
+        shelfWords[i] = allWords[Math.floor(Math.random() * allWords.length)];
+      }
+    }
+  }
+
+  // 渲染货架
+  shelfWords.forEach(w => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.textContent = w;
+    div.setAttribute("draggable", "true");
+    div.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", w));
+    shopDiv.appendChild(div);
+  });
+}
+
+function updateScore(){ 
+  if(score < 0) score = 0;
+  if(score > 100) score = 100;
+  scoreDiv.textContent=`得分：${Math.round(score)}`; // 显示整数即可
+  if(score >= 100){ 
+      endScreen.style.display="flex"; 
+      endScreen.onclick = ()=>location.reload(); 
+  }
+}
+
+function clearAllTimers(){ timers.forEach(t=>clearInterval(t)); timers=[]; }
+</script>
+</body>
+</html>
