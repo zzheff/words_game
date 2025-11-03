@@ -239,8 +239,9 @@ const overlay = document.getElementById('overlay');
 const importBtn = document.getElementById('importBtn');
 const fileInput = document.getElementById('fileInput');
 
-importBtn.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', handleFile);
+importBtn.addEventListener('click', () => {
+  window.location.href = '../public/WordList.html';
+});
 
 function handleFile(e) {
   const file = e.target.files[0];
