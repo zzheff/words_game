@@ -239,10 +239,10 @@ const importBtn = document.getElementById('importBtn');
 // ======= 从 WordList.html 返回的词表 =======
 window.addEventListener('load', () => {
   const selectedWordList = JSON.parse(sessionStorage.getItem('selectedWordList'));
-  if (selectedWordList && selectedWordList.words && selectedWordList.words.length>0) {
+  if (selectedWordList && selectedWordList.words && selectedWordList.words.length > 0) {
     floors = selectedWordList.words.map(w => ({ en: w.en, cn: w.cn, word: w.en }));
     overlay.style.display = 'none';
-    startGame();
+    startGame(); // 导入词表后直接开始游戏
   }
 });
 
@@ -259,7 +259,7 @@ function startGame() {
   pickRandomBackgrounds();
   preloadBackgrounds();
   initFloors();
-  Word();
+  updateWord();
   moveCat(currentFloor);
 }
 
@@ -274,26 +274,24 @@ function initFloors() {
   }
 }
 
+// ======= 更新单词显示函数 =======
 function updateWord() {
   wordDisplay.innerHTML = '';
   let wordObj = floors[currentIndex % floors.length];
   let word = wordObj.word;
   cnHint.textContent = wordObj.cn;
 
-  // 随机选择一个字母显示
-  const displayIndex = Math.floor(Math.random() * word.length);
+  const displayIndex = Math.floor(Math.random() * word.length); // 随机显示一个字母
 
   for (let i = 0; i < word.length; i++) {
     if (i === displayIndex) {
-      // 显示的字母
-      let span = document.createElement('span');
+      const span = document.createElement('span');
       span.textContent = word[i];
       span.style.color = '#000';
       span.style.textShadow = '1px 1px 2px #fff';
       wordDisplay.appendChild(span);
     } else {
-      // 输入框，保存对应单词索引
-      let inp = document.createElement('input');
+      const inp = document.createElement('input');
       inp.className = 'missing';
       inp.maxLength = 1;
       inp.dataset.index = i;
@@ -317,19 +315,19 @@ function updateWord() {
       wordDisplay.appendChild(inp);
     }
   }
+
   submitBtn.style.top = (wordDisplay.offsetTop + wordDisplay.offsetHeight + 5) + 'px';
-  // 自动聚焦第一个输入框
   const firstInput = wordDisplay.querySelector('input.missing');
   if (firstInput) firstInput.focus();
 }
 
+// ======= 检查单词函数 =======
 submitBtn.addEventListener('click', checkWord);
 
 function checkWord() {
   let wordObj = floors[currentIndex % floors.length];
   let correct = true;
 
-  // 遍历所有输入框，用 data-index 对应原单词
   wordDisplay.querySelectorAll('input.missing').forEach(input => {
     const idx = parseInt(input.dataset.index);
     if (input.value.toLowerCase() !== wordObj.word[idx].toLowerCase()) {
@@ -349,29 +347,28 @@ function checkWord() {
     updateWord();
   } else {
     wrongSound.play();
-    // 清空输入框并聚焦第一个
     const inputs = wordDisplay.querySelectorAll('input.missing');
     inputs.forEach(i => i.value = '');
     if (inputs.length > 0) inputs[0].focus();
   }
 }
 
-// === 随机背景逻辑 ===
+// ======= 随机背景逻辑 =======
 const totalBackgrounds = 28;
 const extensions = ['jpg'];
 let floorBackgrounds = [];
 
 function pickRandomBackgrounds() {
   const allBGs = [];
-  for(let i=1;i<=totalBackgrounds;i++){
+  for (let i = 1; i <= totalBackgrounds; i++) {
     extensions.forEach(ext => allBGs.push(`bg${i}.${ext}`));
   }
   floorBackgrounds = [];
   const used = new Set();
-  while(floorBackgrounds.length < totalFloors) {
+  while (floorBackgrounds.length < totalFloors) {
     const idx = Math.floor(Math.random() * allBGs.length);
     const bg = allBGs[idx];
-    if(!used.has(bg)){
+    if (!used.has(bg)) {
       floorBackgrounds.push(bg);
       used.add(bg);
     }
@@ -382,23 +379,24 @@ function preloadBackgrounds() {
   floorBackgrounds.forEach(src => { const img = new Image(); img.src = src; });
 }
 
-function moveCat(floor){
-  const start = parseFloat(cat.style.bottom)||25;
-  cat.style.bottom = start+15+'%';
-  setTimeout(()=>{cat.style.bottom=start+'%';},200);
-  cat.style.left = jumpLeft?'30%':'70%';
+function moveCat(floor) {
+  const start = parseFloat(cat.style.bottom) || 25;
+  cat.style.bottom = start + 15 + '%';
+  setTimeout(() => { cat.style.bottom = start + '%'; }, 200);
+  cat.style.left = jumpLeft ? '30%' : '70%';
   jumpLeft = !jumpLeft;
   moveFocus(floor);
 }
-function moveFocus(floor){
-  const scrollY = floor*(floorHeight+10);
+
+function moveFocus(floor) {
+  const scrollY = floor * (floorHeight + 10);
   container.style.transform = `translateY(-${scrollY}px)`;
   const wrapper = document.getElementById('gameWrapper');
-  const bg = floorBackgrounds[floor%floorBackgrounds.length];
+  const bg = floorBackgrounds[floor % floorBackgrounds.length];
   wrapper.style.background = `url('${bg}') no-repeat center/cover`;
 }
 
-// === 猫选择逻辑 ===
+// ======= 猫选择逻辑 =======
 const catOptions = document.querySelectorAll('#catSelect .catOption');
 catOptions.forEach(img => {
   img.addEventListener('click', () => {
@@ -408,25 +406,26 @@ catOptions.forEach(img => {
   });
 });
 
-// === 结束弹窗功能 ===
+// ======= 结束弹窗功能 =======
 const endOverlay = document.getElementById('endOverlay');
 const endSound = document.getElementById('endSound');
 
-document.getElementById('endBtn').addEventListener('click', ()=>{
+document.getElementById('endBtn').addEventListener('click', () => {
   location.reload();
 });
 
-document.getElementById('restartBtn').addEventListener('click', ()=>{
-  endOverlay.style.display='none';
+document.getElementById('restartBtn').addEventListener('click', () => {
+  endOverlay.style.display = 'none';
   startGame();
 });
 
-function showEndOverlay(){
-  endOverlay.style.display='flex';
-  endSound.currentTime=0;
+function showEndOverlay() {
+  endOverlay.style.display = 'flex';
+  endSound.currentTime = 0;
   endSound.play();
-  endOverlay.onclick = ()=>{endSound.pause();};
+  endOverlay.onclick = () => { endSound.pause(); };
 }
+
 
 </script>
 
