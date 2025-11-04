@@ -259,7 +259,7 @@ function startGame() {
   pickRandomBackgrounds();
   preloadBackgrounds();
   initFloors();
-  updateWord();
+  Word();
   moveCat(currentFloor);
 }
 
@@ -280,18 +280,23 @@ function updateWord() {
   let word = wordObj.word;
   cnHint.textContent = wordObj.cn;
 
+  // 随机选择一个字母显示
   const displayIndex = Math.floor(Math.random() * word.length);
+
   for (let i = 0; i < word.length; i++) {
     if (i === displayIndex) {
+      // 显示的字母
       let span = document.createElement('span');
       span.textContent = word[i];
       span.style.color = '#000';
       span.style.textShadow = '1px 1px 2px #fff';
       wordDisplay.appendChild(span);
     } else {
+      // 输入框，保存对应单词索引
       let inp = document.createElement('input');
       inp.className = 'missing';
       inp.maxLength = 1;
+      inp.dataset.index = i;
       inp.addEventListener('input', function() {
         this.value = this.value.slice(-1);
         const inputs = Array.from(wordDisplay.querySelectorAll('input.missing'));
@@ -299,41 +304,55 @@ function updateWord() {
         if (idx < inputs.length - 1) inputs[idx + 1].focus();
       });
       inp.addEventListener('keydown', function(e) {
-        if (e.key==='Backspace') {
+        if (e.key === 'Backspace') {
           const inputs = Array.from(wordDisplay.querySelectorAll('input.missing'));
           const idx = inputs.indexOf(this);
-          if(this.value==='' && idx>0) {inputs[idx-1].focus(); inputs[idx-1].value=''; e.preventDefault();}
+          if (this.value === '' && idx > 0) {
+            inputs[idx - 1].focus();
+            inputs[idx - 1].value = '';
+            e.preventDefault();
+          }
         }
       });
       wordDisplay.appendChild(inp);
     }
   }
   submitBtn.style.top = (wordDisplay.offsetTop + wordDisplay.offsetHeight + 5) + 'px';
+  // 自动聚焦第一个输入框
+  const firstInput = wordDisplay.querySelector('input.missing');
+  if (firstInput) firstInput.focus();
 }
 
 submitBtn.addEventListener('click', checkWord);
 
 function checkWord() {
   let wordObj = floors[currentIndex % floors.length];
-  const children = wordDisplay.children;
   let correct = true;
-  for (let i = 0; i < children.length; i++) {
-    if (children[i].tagName === 'INPUT') {
-      if (children[i].value.toLowerCase() !== wordObj.word[i]) {correct = false; break;}
+
+  // 遍历所有输入框，用 data-index 对应原单词
+  wordDisplay.querySelectorAll('input.missing').forEach(input => {
+    const idx = parseInt(input.dataset.index);
+    if (input.value.toLowerCase() !== wordObj.word[idx].toLowerCase()) {
+      correct = false;
     }
-  }
-  if(correct){
+  });
+
+  if (correct) {
     correctSound.play();
     currentFloor = Math.min(currentFloor + 1, totalFloors - 1);
     currentIndex++;
-    if(currentIndex >= floors.length){showEndOverlay(); return;}
+    if (currentIndex >= floors.length) {
+      showEndOverlay();
+      return;
+    }
     moveCat(currentFloor);
     updateWord();
   } else {
     wrongSound.play();
+    // 清空输入框并聚焦第一个
     const inputs = wordDisplay.querySelectorAll('input.missing');
-    inputs.forEach(input => input.value='');
-    inputs[0].focus();
+    inputs.forEach(i => i.value = '');
+    if (inputs.length > 0) inputs[0].focus();
   }
 }
 
