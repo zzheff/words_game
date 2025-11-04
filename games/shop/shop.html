@@ -232,15 +232,15 @@ document.getElementById("pauseBtn").addEventListener("click", () => {
   document.getElementById("pauseBtn").textContent = isPaused ? "继续游戏 ▶️" : "暂停游戏 ⏸️";
 });
 
-// CSV 导入
-const csvInput = document.getElementById("csvInput");
-document.getElementById("importBtn").addEventListener("click", () => csvInput.click());
-csvInput.addEventListener("change", () => {
-  const file = csvInput.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const text = e.target.result;
+// 自动从上级文件夹 public/WordList.html 内置词表读取 CSV 并开始游戏
+async function loadWordListFromHTML() {
+  try {
+    // 假设 WordList.html 和 test.csv 在同一目录下
+    const csvPath = '../public/test.csv'; // 修改为实际 CSV 路径
+    const res = await fetch(csvPath);
+    if (!res.ok) throw new Error('文件未找到');
+    const text = await res.text();
+
     const lines = text.split(/\r?\n/);
     words = [];
     for (let line of lines) {
@@ -249,7 +249,7 @@ csvInput.addEventListener("change", () => {
       if (en && cn) words.push({ en: en.trim(), cn: cn.trim() });
     }
 
-    // 新：限制最多 15 对
+    // 限制最多 15 对
     if (words.length === 0) {
       alert("请至少导入1对单词！");
       return;
@@ -260,13 +260,21 @@ csvInput.addEventListener("change", () => {
       return;
     }
 
-    // 成功导入（1–15 对）
+    // 自动开始游戏
     gameStarted = true;
     prepareCustomers();
     spawnCustomers();
-  };
-  reader.readAsText(file, "utf-8");
+  } catch (err) {
+    console.error(err);
+    alert("❌ 无法加载词库，请确保路径正确");
+  }
+}
+
+// 页面加载完就执行
+window.addEventListener('DOMContentLoaded', () => {
+  loadWordListFromHTML();
 });
+
 
 // 准备顾客队列
 function prepareCustomers() {
