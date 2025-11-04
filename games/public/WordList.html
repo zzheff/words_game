@@ -19,211 +19,133 @@
     margin: 0;
     padding: 20px;
   }
-  h1 {
-    text-align: center;
-    color: #333;
-  }
-  .container {
-    max-width: 700px;
-    margin: 0 auto;
-    background: var(--card);
-    box-shadow: var(--shadow);
-    border-radius: 16px;
-    padding: 20px;
-  }
-  .wordlist, .builtin-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  .wordlist button, .builtin-list button {
-    flex: 1 1 45%;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: 0.2s;
-  }
-  .wordlist button:hover, .builtin-list button:hover {
-    opacity: 0.85;
-  }
-  .custom-list {
-    margin-top: 20px;
-  }
-  .custom-list h2 {
-    font-size: 18px;
-    margin-bottom: 8px;
-  }
-  input, textarea {
-    width: 100%;
-    padding: 8px;
-    margin-top: 6px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 14px;
-  }
-  button.create {
-    background: var(--accent2);
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    margin-top: 10px;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-  .lists {
-    margin-top: 20px;
-  }
-  .lists ul {
-    list-style: none;
-    padding: 0;
-  }
-  .lists li {
-    background: #eef5ff;
-    border-radius: 6px;
-    padding: 8px 10px;
-    margin-bottom: 5px;
-    display: flex;
-    justify-content: space-between;
-  }
-  .lists li span {
-    color: #333;
-  }
-  .lists li button {
-    background: #ff6666;
-    border: none;
-    color: white;
-    border-radius: 6px;
-    padding: 4px 8px;
-    cursor: pointer;
-  }
-  .breadcrumb {
-    margin: 10px 0;
-    font-size: 14px;
-    color: #666;
-  }
-  .breadcrumb span {
-    cursor: pointer;
-    text-decoration: underline;
-    margin-right: 5px;
-  }
-  .breadcrumb span:hover {
-    color: #000;
-  }
+  h1 { text-align: center; color: #333; }
+  .container { max-width: 700px; margin: 0 auto; background: var(--card); box-shadow: var(--shadow); border-radius: 16px; padding: 20px; }
+  .wordlist, .builtin-list { display: flex; flex-wrap: wrap; gap: 10px; }
+  .wordlist button, .builtin-list button { flex: 1 1 45%; background: var(--accent); color: white; border: none; border-radius: 8px; padding: 10px; cursor: pointer; font-size: 16px; transition: 0.2s; }
+  .wordlist button:hover, .builtin-list button:hover { opacity: 0.85; }
+  .custom-list { margin-top: 20px; }
+  .custom-list h2 { font-size: 18px; margin-bottom: 8px; }
+  input, textarea { width: 100%; padding: 8px; margin-top: 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+  button.create { background: var(--accent2); color: white; border: none; padding: 10px 20px; margin-top: 10px; border-radius: 8px; cursor: pointer; }
+  .lists { margin-top: 20px; }
+  .lists ul { list-style: none; padding: 0; }
+  .lists li { background: #eef5ff; border-radius: 6px; padding: 8px 10px; margin-bottom: 5px; display: flex; justify-content: space-between; }
+  .lists li span { color: #333; }
+  .lists li button { background: #ff6666; border: none; color: white; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+  .breadcrumb { margin: 10px 0; font-size: 14px; color: #666; }
+  .breadcrumb span { cursor: pointer; text-decoration: underline; margin-right: 5px; }
+  .breadcrumb span:hover { color: #000; }
 </style>
 </head>
 <body>
-  <h1>选择或创建词表</h1>
-  <div class="container">
-    
-    <!-- 内置词表 -->
-    <h2>📘 内置词表</h2>
-    <div class="breadcrumb" id="breadcrumb"></div>
-    <div class="builtin-list" id="builtinList"></div>
+<h1>选择或创建词表</h1>
+<div class="container">
+  <!-- 内置词表 -->
+  <h2>📘 内置词表</h2>
+  <div class="breadcrumb" id="breadcrumb"></div>
+  <div class="builtin-list" id="builtinList"></div>
 
-    <!-- 自定义词表 -->
-    <div class="custom-list">
-      <h2>✏️ 创建自定义词表</h2>
-      <input id="listName" placeholder="请输入词表名称，如‘Unit 1 单词’">
-      <textarea id="wordPairs" rows="5" placeholder="输入单词和中文，用英文逗号分隔，如：apple,苹果\nbook,书"></textarea>
-      <button class="create" onclick="createCustomList()">创建词表</button>
-    </div>
-
-    <div class="lists">
-      <h2>📚 我的自定义词表</h2>
-      <ul id="customLists"></ul>
-    </div>
+  <!-- 自定义词表 -->
+  <div class="custom-list">
+    <h2>✏️ 创建自定义词表</h2>
+    <input id="listName" placeholder="请输入词表名称，如‘Unit 1 单词’">
+    <textarea id="wordPairs" rows="5" placeholder="输入单词和中文，用英文逗号分隔，如：apple,苹果\nbook,书"></textarea>
+    <button class="create" onclick="createCustomList()">创建词表</button>
   </div>
 
-  <script>
-    // ---------- 自定义词表逻辑 ----------
-    const customLists = JSON.parse(localStorage.getItem('customLists') || '[]');
-    const ul = document.getElementById('customLists');
+  <div class="lists">
+    <h2>📚 我的自定义词表</h2>
+    <ul id="customLists"></ul>
+  </div>
+</div>
+
+<script>
+  // ---------- 自定义词表逻辑 ----------
+  const customLists = JSON.parse(localStorage.getItem('customLists') || '[]');
+  const ul = document.getElementById('customLists');
+  renderLists();
+
+  function renderLists() {
+    ul.innerHTML = '';
+    customLists.forEach((list, index) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${list.name}（${list.words.length} 个词）</span>
+                      <div>
+                        <button onclick="loadList(${index})">加载</button>
+                        <button onclick="deleteList(${index})">删除</button>
+                      </div>`;
+      ul.appendChild(li);
+    });
+  }
+
+  function createCustomList() {
+    const name = document.getElementById('listName').value.trim();
+    const raw = document.getElementById('wordPairs').value.trim();
+    if (!name || !raw) return alert('请输入词表名和单词内容');
+    const lines = raw.split('\n').map(l => l.split(',')).filter(a => a.length === 2);
+    const words = lines.map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
+    customLists.push({ name, words });
+    localStorage.setItem('customLists', JSON.stringify(customLists));
     renderLists();
+    document.getElementById('listName').value = '';
+    document.getElementById('wordPairs').value = '';
+    alert('✅ 已创建自定义词表');
+  }
 
-    function renderLists() {
-      ul.innerHTML = '';
-      customLists.forEach((list, index) => {
-        const li = document.createElement('li');
-        li.innerHTML = `<span>${list.name}（${list.words.length} 个词）</span>
-                        <div>
-                          <button onclick="loadList(${index})">加载</button>
-                          <button onclick="deleteList(${index})">删除</button>
-                        </div>`;
-        ul.appendChild(li);
-      });
-    }
-
-    function createCustomList() {
-      const name = document.getElementById('listName').value.trim();
-      const raw = document.getElementById('wordPairs').value.trim();
-      if (!name || !raw) return alert('请输入词表名和单词内容');
-      const lines = raw.split('\n').map(l => l.split(',')).filter(a => a.length === 2);
-      const words = lines.map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
-      customLists.push({ name, words });
+  function deleteList(index) {
+    if (confirm('确定删除这个词表吗？')) {
+      customLists.splice(index, 1);
       localStorage.setItem('customLists', JSON.stringify(customLists));
       renderLists();
-      document.getElementById('listName').value = '';
-      document.getElementById('wordPairs').value = '';
-      alert('✅ 已创建自定义词表');
     }
+  }
 
-    function deleteList(index) {
-      if (confirm('确定删除这个词表吗？')) {
-        customLists.splice(index, 1);
-        localStorage.setItem('customLists', JSON.stringify(customLists));
-        renderLists();
-      }
-    }
+  function loadList(index) {
+    const list = customLists[index];
+    alert(`加载自定义词表：${list.name}\n共有 ${list.words.length} 个词`);
+  }
 
-    function loadList(index) {
-      const list = customLists[index];
-      alert(`加载自定义词表：${list.name}\n共有 ${list.words.length} 个词`);
-    }
+  // ---------- 内置词表逻辑 ----------
+  const builtinContainer = document.getElementById('builtinList');
+  const breadcrumbEl = document.getElementById('breadcrumb');
 
-    // ---------- 内置词表逻辑 ----------
-    const builtinContainer = document.getElementById('builtinList');
-    const breadcrumbEl = document.getElementById('breadcrumb');
+  function loadBuiltIn() {
+    const vocabData = [
+      { name: "🧐测试单词", type: "file", path: "test.csv" }
+    ];
+    renderBuiltin(vocabData);
+  }
 
-    async function loadBuiltIn() {
-      // 内置一个文件：🧐测试单词
-      const vocabData = [
-        { name: "🧐测试单词", type: "file", path: "test.csv" }
-      ];
-      renderBuiltin(vocabData);
-    }
-
-    function renderBuiltin(items) {
-      builtinContainer.innerHTML = '';
-      items.forEach(item => {
-        const btn = document.createElement('button');
-        btn.textContent = item.name;
-        btn.onclick = async () => {
-          if (item.type === 'file') {
-            try {
-              const res = await fetch(item.path);
-              const text = await res.text();
-              const lines = text.trim().split('\n');
-              const words = lines
-                .map(line => line.split(','))
-                .filter(a => a.length === 2)
-                .map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
-              alert(`🧐 已加载词库「${item.name}」\n共 ${words.length} 个单词`);
-              console.log(words);
-            } catch (err) {
-              alert('❌ 无法加载 test.csv，请确保它与 HTML 文件在同一文件夹');
-              console.error(err);
-            }
+  function renderBuiltin(items) {
+    builtinContainer.innerHTML = '';
+    items.forEach(item => {
+      const btn = document.createElement('button');
+      btn.textContent = item.name;
+      btn.onclick = async () => {
+        if (item.type === 'file') {
+          try {
+            const res = await fetch(item.path);
+            if (!res.ok) throw new Error('文件未找到');
+            const text = await res.text();
+            const lines = text.trim().split(/\r?\n/);
+            const words = lines
+              .map(line => line.split(','))
+              .filter(a => a.length === 2)
+              .map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
+            alert(`🧐 已加载词库「${item.name}」\n共 ${words.length} 个单词`);
+            console.log(words); // 后续可用 words 继续处理
+          } catch (err) {
+            alert('❌ 无法加载 test.csv，请确保它与 HTML 文件在同一文件夹');
+            console.error(err);
           }
-        };
-        builtinContainer.appendChild(btn);
-      });
-    }
+        }
+      };
+      builtinContainer.appendChild(btn);
+    });
+  }
 
-    loadBuiltIn();
-  </script>
+  loadBuiltIn();
+</script>
 </body>
 </html>
