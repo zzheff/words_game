@@ -61,6 +61,14 @@
 </div>
 
 <script>
+  // ---------- 获取返回页面 ----------
+  function getReturnPage() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('returnPage') || 'game.html'; // 默认 fallback
+  }
+
+  const returnPage = getReturnPage();
+
   // ---------- 自定义词表逻辑 ----------
   const customLists = JSON.parse(localStorage.getItem('customLists') || '[]');
   const ul = document.getElementById('customLists');
@@ -91,6 +99,10 @@
     document.getElementById('listName').value = '';
     document.getElementById('wordPairs').value = '';
     alert('✅ 已创建自定义词表');
+
+    // 自动跳转回调用页面
+    sessionStorage.setItem('selectedWordList', JSON.stringify({ name, words }));
+    window.location.href = returnPage;
   }
 
   function deleteList(index) {
@@ -103,7 +115,9 @@
 
   function loadList(index) {
     const list = customLists[index];
-    alert(`加载自定义词表：${list.name}\n共有 ${list.words.length} 个词`);
+    sessionStorage.setItem('selectedWordList', JSON.stringify(list));
+    // 跳转回调用页面
+    window.location.href = returnPage;
   }
 
   // ---------- 内置词表逻辑 ----------
@@ -133,10 +147,12 @@
               .map(line => line.split(','))
               .filter(a => a.length === 2)
               .map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
-            alert(`🧐 已加载词库「${item.name}」\n共 ${words.length} 个单词`);
-            console.log(words); // 后续可用 words 继续处理
+
+            sessionStorage.setItem('selectedWordList', JSON.stringify({ name: item.name, words }));
+            // 跳转回调用页面
+            window.location.href = returnPage;
           } catch (err) {
-            alert('❌ 无法加载 test.csv，请确保它与 HTML 文件在同一文件夹');
+            alert('❌ 无法加载词库，请确保文件存在');
             console.error(err);
           }
         }
