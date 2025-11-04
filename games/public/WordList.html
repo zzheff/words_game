@@ -61,14 +61,6 @@
 </div>
 
 <script>
-  // ---------- 获取返回页面 ----------
-  function getReturnPage() {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('returnPage') || 'game.html'; // 默认 fallback
-  }
-
-  const returnPage = getReturnPage();
-
   // ---------- 自定义词表逻辑 ----------
   const customLists = JSON.parse(localStorage.getItem('customLists') || '[]');
   const ul = document.getElementById('customLists');
@@ -91,18 +83,19 @@
     const name = document.getElementById('listName').value.trim();
     const raw = document.getElementById('wordPairs').value.trim();
     if (!name || !raw) return alert('请输入词表名和单词内容');
+
     const lines = raw.split('\n').map(l => l.split(',')).filter(a => a.length === 2);
     const words = lines.map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
+
     customLists.push({ name, words });
     localStorage.setItem('customLists', JSON.stringify(customLists));
     renderLists();
-    document.getElementById('listName').value = '';
-    document.getElementById('wordPairs').value = '';
-    alert('✅ 已创建自定义词表');
 
-    // 自动跳转回调用页面
+    // 保存选中的词表到 sessionStorage
     sessionStorage.setItem('selectedWordList', JSON.stringify({ name, words }));
-    window.location.href = returnPage;
+
+    // 返回上一页
+    history.back();
   }
 
   function deleteList(index) {
@@ -116,13 +109,13 @@
   function loadList(index) {
     const list = customLists[index];
     sessionStorage.setItem('selectedWordList', JSON.stringify(list));
-    // 跳转回调用页面
-    window.location.href = returnPage;
+
+    // 返回上一页
+    history.back();
   }
 
   // ---------- 内置词表逻辑 ----------
   const builtinContainer = document.getElementById('builtinList');
-  const breadcrumbEl = document.getElementById('breadcrumb');
 
   function loadBuiltIn() {
     const vocabData = [
@@ -149,8 +142,9 @@
               .map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
 
             sessionStorage.setItem('selectedWordList', JSON.stringify({ name: item.name, words }));
-            // 跳转回调用页面
-            window.location.href = returnPage;
+
+            // 返回上一页
+            history.back();
           } catch (err) {
             alert('❌ 无法加载词库，请确保文件存在');
             console.error(err);
