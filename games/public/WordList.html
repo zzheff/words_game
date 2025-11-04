@@ -185,18 +185,15 @@
     }
 
     // ---------- 内置词表逻辑 ----------
-    let vocabData = [];
-    let currentPath = [];
-
     const builtinContainer = document.getElementById('builtinList');
     const breadcrumbEl = document.getElementById('breadcrumb');
 
     async function loadBuiltIn() {
-      const res = await fetch('/getVocabularies');
-      vocabData = await res.json();
-      currentPath = [];
+      // 内置一个文件：🧐测试单词
+      const vocabData = [
+        { name: "🧐测试单词", type: "file", path: "test.csv" }
+      ];
       renderBuiltin(vocabData);
-      renderBreadcrumb();
     }
 
     function renderBuiltin(items) {
@@ -204,44 +201,25 @@
       items.forEach(item => {
         const btn = document.createElement('button');
         btn.textContent = item.name;
-        btn.onclick = () => {
-          if (item.type === 'folder') {
-            currentPath.push({ name: item.name, items: items });
-            renderBuiltin(item.children);
-            renderBreadcrumb();
-          } else if (item.type === 'file') {
-            alert(`已选择内置词表：${item.name}`);
+        btn.onclick = async () => {
+          if (item.type === 'file') {
+            try {
+              const res = await fetch(item.path);
+              const text = await res.text();
+              const lines = text.trim().split('\n');
+              const words = lines
+                .map(line => line.split(','))
+                .filter(a => a.length === 2)
+                .map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
+              alert(`🧐 已加载词库「${item.name}」\n共 ${words.length} 个单词`);
+              console.log(words);
+            } catch (err) {
+              alert('❌ 无法加载 test.csv，请确保它与 HTML 文件在同一文件夹');
+              console.error(err);
+            }
           }
         };
         builtinContainer.appendChild(btn);
-      });
-    }
-
-    function renderBreadcrumb() {
-      breadcrumbEl.innerHTML = '';
-
-      if (currentPath.length > 0) {
-        // 显示返回上级的箭头按钮
-        const backBtn = document.createElement('span');
-        backBtn.textContent = '⬅️ 返回上级';
-        backBtn.style.cursor = 'pointer';
-        backBtn.onclick = () => {
-          currentPath.pop(); // 返回上一级
-          const items = currentPath.length === 0 ? vocabData : currentPath[currentPath.length - 1].children;
-          renderBuiltin(items);
-          renderBreadcrumb();
-        };
-        breadcrumbEl.appendChild(backBtn);
-      }
-
-      // 显示当前位置路径文字（可选）
-      currentPath.forEach((p, index) => {
-        const sep = document.createTextNode(' / ');
-        breadcrumbEl.appendChild(sep);
-        const span = document.createElement('span');
-        span.textContent = p.name;
-        span.style.cursor = 'default';
-        breadcrumbEl.appendChild(span);
       });
     }
 
