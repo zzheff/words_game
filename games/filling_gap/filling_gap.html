@@ -237,9 +237,9 @@ const wrongSound = document.getElementById('wrongSound');
 const overlay = document.getElementById('overlay');
 const importBtn = document.getElementById('importBtn');
 
-// 点击按钮跳转到WordList.html
+// 点击按钮打开 WordList.html 新窗口
 importBtn.addEventListener('click', () => {
-  window.location.href = '../public/WordList.html';
+  window.open('../public/WordList.html', 'wordListWindow', 'width=800,height=600');
 });
 
 // 接收WordList.html传回的数据并自动开始游戏
