@@ -13,12 +13,7 @@
     --shadow: 0 4px 10px rgba(0,0,0,0.08);
     --font: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
   }
-  body {
-    background: var(--bg);
-    font-family: var(--font);
-    margin: 0;
-    padding: 20px;
-  }
+  body { background: var(--bg); font-family: var(--font); margin: 0; padding: 20px; }
   h1 { text-align: center; color: #333; }
   .container { max-width: 700px; margin: 0 auto; background: var(--card); box-shadow: var(--shadow); border-radius: 16px; padding: 20px; }
   .wordlist, .builtin-list { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -33,9 +28,6 @@
   .lists li { background: #eef5ff; border-radius: 6px; padding: 8px 10px; margin-bottom: 5px; display: flex; justify-content: space-between; }
   .lists li span { color: #333; }
   .lists li button { background: #ff6666; border: none; color: white; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
-  .breadcrumb { margin: 10px 0; font-size: 14px; color: #666; }
-  .breadcrumb span { cursor: pointer; text-decoration: underline; margin-right: 5px; }
-  .breadcrumb span:hover { color: #000; }
 </style>
 </head>
 <body>
@@ -43,7 +35,6 @@
 <div class="container">
   <!-- 内置词表 -->
   <h2>📘 内置词表</h2>
-  <div class="breadcrumb" id="breadcrumb"></div>
   <div class="builtin-list" id="builtinList"></div>
 
   <!-- 自定义词表 -->
@@ -90,19 +81,7 @@
     customLists.push({ name, words });
     localStorage.setItem('customLists', JSON.stringify(customLists));
     renderLists();
-
-    // 保存选中的词表到 sessionStorage
-    const selectedList = { name, words };
-    sessionStorage.setItem('selectedWordList', JSON.stringify(selectedList));
-
-    // === 新增：发送数据给主页面 ===
-    if (window.opener) {
-      const csvText = words.map(w => `${w.en},${w.cn}`).join('\n');
-      window.opener.postMessage({ type: 'csvData', csv: csvText }, '*');
-    }
-
-    // 返回上一页
-    history.back();
+    alert('✅ 创建成功');
   }
 
   function deleteList(index) {
@@ -113,18 +92,17 @@
     }
   }
 
+  // ✅ 加载自定义词表并发给父窗口
   function loadList(index) {
     const list = customLists[index];
-    sessionStorage.setItem('selectedWordList', JSON.stringify(list));
+    const csvText = list.words.map(w => `${w.en},${w.cn}`).join('\n');
 
-    // === 新增：发送数据给主页面 ===
     if (window.opener) {
-      const csvText = list.words.map(w => `${w.en},${w.cn}`).join('\n');
       window.opener.postMessage({ type: 'csvData', csv: csvText }, '*');
+      window.close();
+    } else {
+      alert('⚠️ 无法与父页面通信');
     }
-
-    // 返回上一页
-    history.back();
   }
 
   // ---------- 内置词表逻辑 ----------
@@ -132,7 +110,7 @@
 
   function loadBuiltIn() {
     const vocabData = [
-      { name: "🧐测试单词", type: "file", path: "test.csv" }
+      { name: "🧐 测试单词", type: "file", path: "test.csv" }
     ];
     renderBuiltin(vocabData);
   }
@@ -154,17 +132,15 @@
               .filter(a => a.length === 2)
               .map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
 
-            const list = { name: item.name, words };
-            sessionStorage.setItem('selectedWordList', JSON.stringify(list));
-
-            // === 新增：发送数据给主页面 ===
+            // ✅ 直接发给父窗口
+            const csvText = words.map(w => `${w.en},${w.cn}`).join('\n');
             if (window.opener) {
-              const csvText = words.map(w => `${w.en},${w.cn}`).join('\n');
               window.opener.postMessage({ type: 'csvData', csv: csvText }, '*');
+              window.close();
+            } else {
+              alert('⚠️ 无法与父页面通信');
             }
 
-            // 返回上一页
-            history.back();
           } catch (err) {
             alert('❌ 无法加载词库，请确保文件存在');
             console.error(err);
