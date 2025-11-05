@@ -92,7 +92,14 @@
     renderLists();
 
     // 保存选中的词表到 sessionStorage
-    sessionStorage.setItem('selectedWordList', JSON.stringify({ name, words }));
+    const selectedList = { name, words };
+    sessionStorage.setItem('selectedWordList', JSON.stringify(selectedList));
+
+    // === 新增：发送数据给主页面 ===
+    if (window.opener) {
+      const csvText = words.map(w => `${w.en},${w.cn}`).join('\n');
+      window.opener.postMessage({ type: 'csvData', csv: csvText }, '*');
+    }
 
     // 返回上一页
     history.back();
@@ -109,6 +116,12 @@
   function loadList(index) {
     const list = customLists[index];
     sessionStorage.setItem('selectedWordList', JSON.stringify(list));
+
+    // === 新增：发送数据给主页面 ===
+    if (window.opener) {
+      const csvText = list.words.map(w => `${w.en},${w.cn}`).join('\n');
+      window.opener.postMessage({ type: 'csvData', csv: csvText }, '*');
+    }
 
     // 返回上一页
     history.back();
@@ -141,7 +154,14 @@
               .filter(a => a.length === 2)
               .map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
 
-            sessionStorage.setItem('selectedWordList', JSON.stringify({ name: item.name, words }));
+            const list = { name: item.name, words };
+            sessionStorage.setItem('selectedWordList', JSON.stringify(list));
+
+            // === 新增：发送数据给主页面 ===
+            if (window.opener) {
+              const csvText = words.map(w => `${w.en},${w.cn}`).join('\n');
+              window.opener.postMessage({ type: 'csvData', csv: csvText }, '*');
+            }
 
             // 返回上一页
             history.back();
