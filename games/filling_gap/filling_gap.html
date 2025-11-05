@@ -242,7 +242,7 @@ importBtn.addEventListener('click', () => {
   window.location.href = '../public/WordList.html';
 });
 
-// 接收WordList.html传回的数据
+// 接收WordList.html传回的数据并自动开始游戏
 window.addEventListener('message', function(e) {
   if(e.data && e.data.type === 'csvData') {
     const csvText = e.data.csv;
@@ -255,7 +255,7 @@ window.addEventListener('message', function(e) {
       if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
       return { en, cn, word: en };
     });
-    if(floors.length > 0) startGame();
+    if(floors.length > 0) startGame(); // 接收后直接开始游戏
   }
 });
 
@@ -355,8 +355,8 @@ function checkWord() {
 }
 
 // === 随机背景逻辑 ===
-const totalBackgrounds = 28; // 总共100张图，这里后面可以自己改
-const extensions = ['jpg']; // 支持的后缀
+const totalBackgrounds = 28; 
+const extensions = ['jpg']; 
 let floorBackgrounds = [];
 
 function pickRandomBackgrounds() {
@@ -376,7 +376,6 @@ function pickRandomBackgrounds() {
   }
 }
 
-// 每层楼不同背景
 function moveCat(floor){
   const start = parseFloat(cat.style.bottom)||25;
   cat.style.bottom = start+15+'%';
@@ -408,24 +407,20 @@ const endOverlay = document.getElementById('endOverlay');
 const endSound = document.getElementById('endSound');
 
 document.getElementById('endBtn').addEventListener('click', ()=>{
-  // 结束游戏按钮直接返回首页
   location.reload();
 });
 
 document.getElementById('restartBtn').addEventListener('click', ()=>{
-  // 再来一轮按钮隐藏弹窗并重新开始
   endOverlay.style.display='none';
   startGame();
 });
 
 function showEndOverlay(){
-  // 显示弹窗，但不弹确认
   endOverlay.style.display='flex';
   endSound.currentTime=0;
   endSound.play();
   endOverlay.onclick = ()=>{endSound.pause();};
 }
-
 </script>
 
 </body>
