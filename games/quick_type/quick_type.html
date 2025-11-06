@@ -203,23 +203,32 @@
       if(_bgNext){ try{ scene.removeChild(_bgNext);}catch(e){} _bgNext=null; }
     }
 
-    // ------------------ 从 WordList.html 导入单词 ------------------
+    // ------------------ CSV 导入单词 ------------------
     let importedWords = [];
     let remainingWords = []; // ✅ 保存当前还没答对的单词
 
+    function pickRandomWord() {
+      if (remainingWords.length === 0) {
+        alert('🎉 所有单词都已完成！请重新导入或刷新页面。');
+        return null;
+      }
+      return remainingWords[Math.floor(Math.random() * remainingWords.length)];
+    }
+
     const importBtn = document.getElementById('importBtn');
 
-    // 点击按钮打开 WordList.html 新窗口
+    // ✅ 点击按钮时打开上级目录的 WordList.html
     importBtn.addEventListener('click', () => {
-      window.open('../public/WordList.html', 'wordListWindow', 'width=800,height=600');
+      const win = window.open('../public/WordList.html', '_blank');
+      if (!win) {
+        alert('请允许弹出窗口，以便选择词表。');
+      }
     });
 
-    // 接收 WordList.html 传回的数据并开始游戏
-    window.addEventListener('message', (e) => {
-      if (e.data && e.data.type === 'csvData') {
-        const csvText = e.data.csv;
-        if (!csvText) return;
-
+    // ✅ 监听从 WordList.html 返回的数据
+    window.addEventListener('message', event => {
+      const { type, csvText } = event.data || {};
+      if (type === 'csvData' && typeof csvText === 'string') {
         const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
         importedWords = [];
         for (const line of lines) {
@@ -241,28 +250,11 @@
         }
 
         if (importedWords.length > 0) {
-          alert(`✅ 已成功导入 ${importedWords.length} 个单词！`);
           remainingWords = [...importedWords];
-           // 等待 startRound / pickRandomWord 就绪后再启动（最多重试 50 次，约 5 秒）
-          const maxAttempts = 50;
-          let attempts = 0;
-          const intervalId = setInterval(() => {
-            attempts++;
-            const ready = (typeof startRound === 'function') && (typeof pickRandomWord === 'function');
-            if (ready) {
-              clearInterval(intervalId);
-              try {
-                startRound();
-              } catch (err) {
-                console.error('调用 startRound() 时出错：', err);
-                alert('启动游戏时出错（查看控制台详情）');
-              }
-            } else if (attempts >= maxAttempts) {
-              clearInterval(intervalId);
-              console.error('超时：startRound 或 pickRandomWord 未定义，无法自动开始游戏。');
-              alert('导入成功，但未能自动开始（startRound 未就绪）。请手动点击“开始”。');
-            }
-          }, 100); // 每 100ms 检查一次
+          alert(`✅ 已成功接收 ${importedWords.length} 个单词`);
+          feedback.textContent = '词表已加载，点击“开始”开始游戏';
+        } else {
+          alert('⚠️ 未检测到有效单词数据');
         }
       }
     });
