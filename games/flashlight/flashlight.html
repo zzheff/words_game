@@ -166,25 +166,28 @@ window.addEventListener('touchmove',e=>{
   handlePointer(t.clientX,t.clientY);
 });
 
-// 导入 CSV 单词
-document.getElementById('importBtn').addEventListener('click',()=>{
-  const input = document.createElement('input');
-  input.type='file'; input.accept='.csv';
-  input.onchange = e=>{
-    const file = e.target.files[0]; if(!file) return;
-    const reader = new FileReader();
-    reader.onload = evt=>{
-      const text = evt.target.result;
-      const lines = text.split(/\r?\n/).slice(0,15);
-      lines.forEach(line=>{
-        const [chinese,english]=line.split(',');
-        if(chinese && english) HOTSPOTS.push({chinese:chinese.trim(),english:english.trim()});
-      });
-      createHotspots();
-    };
-    reader.readAsText(file,'UTF-8');
-  };
-  input.click();
+// === 修改后的导入单词逻辑 ===
+// 点击按钮打开 WordList.html 新窗口
+document.getElementById('importBtn').addEventListener('click', () => {
+  window.open('../public/WordList.html', 'wordListWindow', 'width=800,height=600');
+});
+
+// 接收 WordList.html 传回的数据并生成热点
+window.addEventListener('message', function(e) {
+  if(e.data && e.data.type === 'csvData') {
+    const csvText = e.data.csv;
+    if(!csvText) return;
+    const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
+    HOTSPOTS = [];
+    lines.forEach(line => {
+      const parts = line.split(',');
+      let en = parts[0]?.trim() || '';
+      let cn = parts[1]?.trim() || '';
+      if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
+      if(en && cn) HOTSPOTS.push({ english: en, chinese: cn });
+    });
+    if (HOTSPOTS.length > 0) createHotspots();
+  }
 });
 
 // 刷新单词显示
