@@ -214,8 +214,8 @@
       window.open('../public/WordList.html', 'wordListWindow', 'width=800,height=600');
     });
 
-    // 接收 WordList.html 传回的数据
-    window.addEventListener('message', function(e) {
+    // 接收 WordList.html 传回的数据并开始游戏
+    window.addEventListener('message', (e) => {
       if (e.data && e.data.type === 'csvData') {
         const csvText = e.data.csv;
         if (!csvText) return;
@@ -241,7 +241,7 @@
         }
 
         if (importedWords.length > 0) {
-          alert(`✅ 已成功接收 ${importedWords.length} 个单词！`);
+          alert(`✅ 已成功导入 ${importedWords.length} 个单词！`);
           remainingWords = [...importedWords];
           startRound(); // ✅ 自动开始游戏
         }
