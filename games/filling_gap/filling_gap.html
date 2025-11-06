@@ -334,22 +334,30 @@ function checkWord() {
   let wordObj = floors[currentIndex % floors.length];
   const children = wordDisplay.children;
   let correct = true;
+  
   for (let i = 0; i < children.length; i++) {
     if (children[i].tagName === 'INPUT') {
-      if (children[i].value.toLowerCase() !== wordObj.word[i]) {correct = false; break;}
+      let userInput = children[i].value.trim().toLowerCase();
+      let correctWord = wordObj.word[i].toLowerCase();
+      
+      if (userInput !== correctWord) {
+        correct = false;
+        break;
+      }
     }
   }
-  if(correct){
+
+  if (correct) {
     correctSound.play();
     currentFloor = Math.min(currentFloor + 1, totalFloors - 1);
     currentIndex++;
-    if(currentIndex >= floors.length){showEndOverlay(); return;}
+    if (currentIndex >= floors.length) { showEndOverlay(); return; }
     moveCat(currentFloor);
     updateWord();
   } else {
     wrongSound.play();
     const inputs = wordDisplay.querySelectorAll('input.missing');
-    inputs.forEach(input => input.value='');
+    inputs.forEach(input => input.value = '');
     inputs[0].focus();
   }
 }
@@ -420,6 +428,13 @@ function showEndOverlay(){
   endSound.currentTime=0;
   endSound.play();
   endOverlay.onclick = ()=>{endSound.pause();};
+}
+
+window.onload = function() {
+  // 默认选择橘猫
+  const defaultCat = document.querySelector('#catSelect .catOption'); 
+  defaultCat.classList.add('selected');
+  cat.style.background = `url('${defaultCat.src}') no-repeat center/contain`;
 }
 </script>
 
