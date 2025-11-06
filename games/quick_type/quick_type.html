@@ -243,7 +243,14 @@
         if (importedWords.length > 0) {
           alert(`✅ 已成功导入 ${importedWords.length} 个单词！`);
           remainingWords = [...importedWords];
-          startRound(); // ✅ 自动开始游戏
+          // ✅ 等 startRound 定义完成后再执行
+          setTimeout(() => {
+            if (typeof startRound === 'function') {
+              startRound();
+            } else {
+              console.error('⚠️ startRound() 未定义，无法启动游戏。');
+            }
+          }, 100);
         }
       }
     });
