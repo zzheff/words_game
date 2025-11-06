@@ -243,14 +243,26 @@
         if (importedWords.length > 0) {
           alert(`✅ 已成功导入 ${importedWords.length} 个单词！`);
           remainingWords = [...importedWords];
-          // ✅ 等 startRound 定义完成后再执行
-          setTimeout(() => {
-            if (typeof startRound === 'function') {
-              startRound();
-            } else {
-              console.error('⚠️ startRound() 未定义，无法启动游戏。');
+           // 等待 startRound / pickRandomWord 就绪后再启动（最多重试 50 次，约 5 秒）
+          const maxAttempts = 50;
+          let attempts = 0;
+          const intervalId = setInterval(() => {
+            attempts++;
+            const ready = (typeof startRound === 'function') && (typeof pickRandomWord === 'function');
+            if (ready) {
+              clearInterval(intervalId);
+              try {
+                startRound();
+              } catch (err) {
+                console.error('调用 startRound() 时出错：', err);
+                alert('启动游戏时出错（查看控制台详情）');
+              }
+            } else if (attempts >= maxAttempts) {
+              clearInterval(intervalId);
+              console.error('超时：startRound 或 pickRandomWord 未定义，无法自动开始游戏。');
+              alert('导入成功，但未能自动开始（startRound 未就绪）。请手动点击“开始”。');
             }
-          }, 100);
+          }, 100); // 每 100ms 检查一次
         }
       }
     });
