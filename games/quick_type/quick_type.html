@@ -115,6 +115,12 @@
 
 
   <script>
+
+      // ✅ 放在最上面，确保监听先注册
+      window.addEventListener('message', event => {
+        console.log('收到消息:', event.data);
+      });
+      
     const successSound = new Audio('sounds/success.mp3');
     const failSounds = {
       bomb: new Audio('sounds/bomb_fail.mp3'),
