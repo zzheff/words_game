@@ -120,7 +120,6 @@
       window.addEventListener('message', event => {
         console.log('收到消息:', event.data);
       });
-      
     const successSound = new Audio('sounds/success.mp3');
     const failSounds = {
       bomb: new Audio('sounds/bomb_fail.mp3'),
@@ -233,8 +232,10 @@
 
     // ✅ 监听从 WordList.html 返回的数据
     window.addEventListener('message', event => {
-      const { type, csvText } = event.data || {};
-      if (type === 'csvData' && typeof csvText === 'string') {
+      const { type, csvText, csv } = event.data || {};
+      const text = csvText || csv; // ✅ 兼容两种字段
+      if (type === 'csvData' && typeof text === 'string') {
+        const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
         const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
         importedWords = [];
         for (const line of lines) {
