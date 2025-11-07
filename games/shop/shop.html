@@ -332,6 +332,8 @@ function addCustomer(obj){
     }
   },400);
   timers.push(timer);
+
+  renderShelf(); // ✅ 确保每个新顾客来时更新柜台
 }
 
 function handleDrop(selected, div, obj){
@@ -400,8 +402,10 @@ function checkNextBatch(){
           const delay = 4000;
           setTimeout(()=>{
             const next = customersQueue.shift();
-            if(next) addCustomer(next);
-            renderShelf();
+            if(next) {
+              addCustomer(next);
+              renderShelf(); // ✅ 新顾客上场时刷新柜台
+            }
           }, delay);
         } else {
           const stillActive = activeCustomers.filter(ac => !toRemove.includes(ac));
