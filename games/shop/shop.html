@@ -210,7 +210,7 @@ document.getElementById("importBtn").addEventListener("click", () => {
 
 // ✅ 接收 WordList.html 发回的单词数据
 window.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "csvData") {
+  if (event.data && event.data.type === "csvData" && event.data.csv && event.data.csv.trim().length > 0) {
     const csvText = event.data.csv;
     const lines = csvText.split(/\r?\n/);
     words = [];
@@ -230,7 +230,7 @@ window.addEventListener("message", (event) => {
       return;
     }
 
-    // 自动开始游戏
+    // ✅ 只有确认收到有效CSV后才启动游戏
     gameStarted = true;
     prepareCustomers();
     spawnCustomers();
