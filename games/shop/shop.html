@@ -23,7 +23,6 @@
     padding: 15px 0;
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
   }
-
   #window {
     display: flex;
     justify-content: center;
@@ -52,20 +51,8 @@
   .customer.happy { background: #d0f5be; }
   .customer.angry { background: #ffc6c6; }
 
-  .bar {
-    width: 80%;
-    height: 12px;
-    background: #ddd;
-    border-radius: 6px;
-    overflow: hidden;
-    margin-bottom: 5px;
-  }
-  .bar-inner {
-    width: 100%;
-    height: 100%;
-    background: #91d18b;
-    transition: width 0.3s linear;
-  }
+  .bar { width: 80%; height: 12px; background: #ddd; border-radius: 6px; overflow: hidden; margin-bottom: 5px; }
+  .bar-inner { width: 100%; height: 100%; background: #91d18b; transition: width 0.3s linear; }
 
   #counter {
     background: #f9efe0;
@@ -106,21 +93,11 @@
     font-size: 20px;
     transition: all 0.2s;
   }
-  .item:hover {
-    background: #ffe8a1;
-    transform: scale(1.1);
-  }
+  .item:hover { background: #ffe8a1; transform: scale(1.1); }
 
-  #message {
-    font-size: 20px;
-    margin-top: 10px;
-    min-height: 26px;
-  }
-  #score {
-    margin-top: 15px;
-    font-size: 22px;
-    color: #333;
-  }
+  #message { font-size: 20px; margin-top: 10px; min-height: 26px; }
+  #score { margin-top: 15px; font-size: 22px; color: #333; }
+
   button {
     margin-top: 20px;
     padding: 10px 25px;
@@ -154,19 +131,15 @@
     cursor:pointer;
     z-index: 999;
   }
-  #endScreen img {
-    max-width:80%;
-    max-height:80%;
-  }
+  #endScreen img { max-width:80%; max-height:80%; }
 
-  /* 固定槽位，保证顾客位置不会因 DOM 删除而重排 */
   .customer-slot {
     width: 200px;
     height: 150px;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex: 0 0 200px; /* 保持宽度不变 */
+    flex: 0 0 200px;
   }
 </style>
 </head>
@@ -178,14 +151,14 @@
   <h2>我的柜台</h2>
   <div id="shelf"><div id="shop"></div></div>
 </div>
+
 <div id="message"></div>
 <div id="score">得分：0</div>
 
 <button id="pauseBtn">暂停游戏 ⏸️</button>
-<input type="file" id="csvInput" accept=".csv" style="display:none;">
 <button id="importBtn">导入 CSV 📥</button>
 
-<!-- 🎵 新增背景音乐按钮 -->
+<!-- 🎵 背景音乐 -->
 <button id="musicBtn">播放音乐 🎶</button>
 <audio id="bgm" src="music/bg.mp3" loop></audio>
 
@@ -202,18 +175,16 @@ let gameStarted = false;
 let correctAnswers = 0;
 let totalCustomers = 0;
 
-
 const windowDiv = document.getElementById("window");
 const shopDiv = document.getElementById("shop");
 const scoreDiv = document.getElementById("score");
 const endScreen = document.getElementById("endScreen");
 
-
 // 🎵 背景音乐逻辑
 const music = document.getElementById("bgm");
 const musicBtn = document.getElementById("musicBtn");
 let musicPlaying = false;
-music.volume = 0.4; // 调整音量
+music.volume = 0.4;
 
 musicBtn.addEventListener("click", () => {
   if (!musicPlaying) {
@@ -226,22 +197,22 @@ musicBtn.addEventListener("click", () => {
   musicPlaying = !musicPlaying;
 });
 
-
+// 暂停
 document.getElementById("pauseBtn").addEventListener("click", () => {
   isPaused = !isPaused;
   document.getElementById("pauseBtn").textContent = isPaused ? "继续游戏 ▶️" : "暂停游戏 ⏸️";
 });
 
-// 自动从上级文件夹 public/WordList.html 内置词表读取 CSV 并开始游戏
-async function loadWordListFromHTML() {
-  try {
-    // 假设 WordList.html 和 test.csv 在同一目录下
-    const csvPath = '../public/test.csv'; // 修改为实际 CSV 路径
-    const res = await fetch(csvPath);
-    if (!res.ok) throw new Error('文件未找到');
-    const text = await res.text();
+// ✅ 修改后的导入逻辑：打开 WordList.html
+document.getElementById("importBtn").addEventListener("click", () => {
+  window.open("../public/WordList.html", "_blank", "width=800,height=600");
+});
 
-    const lines = text.split(/\r?\n/);
+// ✅ 接收 WordList.html 发回的单词数据
+window.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "csvData") {
+    const csvText = event.data.csv;
+    const lines = csvText.split(/\r?\n/);
     words = [];
     for (let line of lines) {
       if (!line.trim()) continue;
@@ -249,9 +220,8 @@ async function loadWordListFromHTML() {
       if (en && cn) words.push({ en: en.trim(), cn: cn.trim() });
     }
 
-    // 限制最多 15 对
     if (words.length === 0) {
-      alert("请至少导入1对单词！");
+      alert("未接收到有效单词，请重新选择。");
       return;
     }
     if (words.length > 15) {
@@ -264,45 +234,24 @@ async function loadWordListFromHTML() {
     gameStarted = true;
     prepareCustomers();
     spawnCustomers();
-  } catch (err) {
-    console.error(err);
-    alert("❌ 无法加载词库，请确保路径正确");
   }
-}
-
-// 页面加载完就执行
-window.addEventListener('DOMContentLoaded', () => {
-  loadWordListFromHTML();
 });
 
+// === 以下保持不变 ===
 
-// 准备顾客队列
 function prepareCustomers() {
   customersQueue = [];
   const selectedWords = [];
-
-  // 使用导入的实际数量（最多 15）
   const wordCount = Math.min(words.length, 15);
-
-  // 取前 wordCount 个（或可以改为随机挑选）
-  for (let i = 0; i < wordCount; i++) {
-    selectedWords.push(words[i]);
-  }
-
-  // 每个单词生成两种顾客（中→英、英→中）
+  for (let i = 0; i < wordCount; i++) selectedWords.push(words[i]);
   selectedWords.forEach(w => {
     customersQueue.push({ need: w.en, want: w.cn });
     customersQueue.push({ need: w.cn, want: w.en });
   });
-
-  // 打乱顺序
   customersQueue.sort(() => Math.random() - 0.5);
-
-  // ✅ 新增：记录顾客总数
   totalCustomers = customersQueue.length;
 }
 
-// 生成最多3个顾客（使用固定槽位，不会让已有顾客移动）
 function spawnCustomers() {
   clearAllTimers();
   windowDiv.innerHTML = "";
@@ -318,7 +267,6 @@ function spawnCustomers() {
   renderShelf();
 }
 
-// 添加顾客到屏幕
 function addCustomer(obj){
   const slots = Array.from(windowDiv.querySelectorAll(".customer-slot"));
   const freeSlot = slots.find(s => s.dataset.occupied === "false");
@@ -330,7 +278,6 @@ function addCustomer(obj){
   div.dataset.answer=obj.want;
   div.dataset.done="false";
 
-  // ⭐ 随机顾客样子 + 默认表情
   const faceId = Math.floor(Math.random() * 3) + 1;
   div.dataset.faceId = faceId;
   const img = document.createElement("img");
@@ -339,14 +286,17 @@ function addCustomer(obj){
   img.style.height = "80px";
   div.appendChild(img);
 
-  const bar=document.createElement("div"); bar.className="bar";
-  const inner=document.createElement("div"); inner.className="bar-inner";
+  const bar=document.createElement("div");
+  bar.className="bar";
+  const inner=document.createElement("div");
+  inner.className="bar-inner";
   bar.appendChild(inner);
 
   const text=document.createElement("div");
   text.textContent = obj.need.match(/[\u4e00-\u9fa5]/) ? `我要买 “${obj.need}” 的英文！` : `我要买 “${obj.need}” 的中文！`;
 
-  div.appendChild(bar); div.appendChild(text);
+  div.appendChild(bar);
+  div.appendChild(text);
 
   slotToUse.appendChild(div);
   slotToUse.dataset.occupied = "true";
@@ -364,19 +314,16 @@ function addCustomer(obj){
     if(isPaused) return;
     if(div.dataset.done==="true"){ clearInterval(timer); return; }
     patience-=2; inner.style.width=patience+"%";
-    if (patience > 60) inner.style.background = "#91d18b";       // 绿
-    else if (patience > 30) inner.style.background = "#ffd166";  // 黄
-    else inner.style.background = "#ff5c5c";                     // 红
+    if (patience > 60) inner.style.background = "#91d18b";
+    else if (patience > 30) inner.style.background = "#ffd166";
+    else inner.style.background = "#ff5c5c";
     if(patience<=0){
       clearInterval(timer);
       div.classList.add("angry");
-      // ⭐ 生气表情
       const faceId = div.dataset.faceId;
       const imgTag = div.querySelector("img");
       if (imgTag) imgTag.src = `faces/c${faceId}_angry.png`;
-
       div.dataset.done="true";
-      // 保证最后一个子节点存在
       if (div.lastChild) div.lastChild.textContent="哼！太慢了！😠";
       score = Math.round((correctAnswers / totalCustomers) * 100);
       updateScore();
@@ -387,21 +334,17 @@ function addCustomer(obj){
   timers.push(timer);
 }
 
-// 处理拖放
 function handleDrop(selected, div, obj){
   if(isPaused || div.dataset.done==="true") return;
   if(selected === obj.want){
     div.classList.add("happy");
-    // ⭐ 开心表情
     const faceId = div.dataset.faceId;
     const imgTag = div.querySelector("img");
     if (imgTag) imgTag.src = `faces/c${faceId}_happy.png`;
-
     div.dataset.done = "true";
-    if (div.lastChild) div.lastChild.textContent = "谢谢！😊"; 
+    if (div.lastChild) div.lastChild.textContent = "谢谢！😊";
     correctAnswers++;
     score = Math.round((correctAnswers / totalCustomers) * 100);
-
     const items = Array.from(shopDiv.children);
     let removedCount = 0;
     for (let it of items) {
@@ -410,11 +353,8 @@ function handleDrop(selected, div, obj){
         removedCount++;
       }
     }
-
-    // 补充货架：当词源有限时允许重复填充，避免死循环
     const maxItems = 18;
     const allWords = words.flatMap(w => [w.en, w.cn]);
-    // 若 allWords 只有少数项，也可以重复出现
     while (shopDiv.children.length < maxItems && allWords.length > 0) {
       const newWord = allWords[Math.floor(Math.random() * allWords.length)];
       const divItem = document.createElement("div");
@@ -424,7 +364,6 @@ function handleDrop(selected, div, obj){
       divItem.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", newWord));
       shopDiv.appendChild(divItem);
     }
-
     checkNextBatch();
   } else {
     const tempDiv = document.createElement("div");
@@ -444,7 +383,6 @@ function handleDrop(selected, div, obj){
   updateScore();
 }
 
-// 检查是否显示下一批
 function checkNextBatch(){
   const toRemove = [];
   activeCustomers.forEach(c=>{
@@ -475,47 +413,29 @@ function checkNextBatch(){
       }, 2000);
     }
   });
-
   if(toRemove.length>0){
     activeCustomers = activeCustomers.filter(ac => !toRemove.includes(ac));
   }
 }
 
-// 渲染货架
 function renderShelf() {
   shopDiv.innerHTML = "";
-  const maxItems = 3 * 6; // 3行，每行6个单词
+  const maxItems = 3 * 6;
   const allWords = words.flatMap(w => [w.en, w.cn]);
-
-  // activeNeeds 可能为空
   const activeNeeds = activeCustomers.map(c => [c.obj.need, c.obj.want]).flat();
-
-  // 先把 activeNeeds 随机放到某些位置（如果 activeNeeds 太多也要容错）
   const shelfWords = new Array(maxItems).fill(null);
   const positions = Array.from({length: maxItems}, (_,i)=>i);
-  // shuffle positions
   for (let i = positions.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [positions[i], positions[j]] = [positions[j], positions[i]];
   }
-  // 放置答案（若 activeNeeds 超过 maxItems，则只放前 maxItems 个）
   const toPlaceAnswers = activeNeeds.slice(0, maxItems);
-  toPlaceAnswers.forEach((answer, idx) => {
-    shelfWords[positions[idx]] = answer;
-  });
-
-  // 填充其他随机单词到空位（允许重复，避免死循环）
+  toPlaceAnswers.forEach((answer, idx) => { shelfWords[positions[idx]] = answer; });
   for (let i = 0; i < maxItems; i++) {
     if (!shelfWords[i]) {
-      if (allWords.length === 0) {
-        shelfWords[i] = ""; // 保底空字符串（不会发生，因为导入至少 1 对）
-      } else {
-        shelfWords[i] = allWords[Math.floor(Math.random() * allWords.length)];
-      }
+      shelfWords[i] = allWords[Math.floor(Math.random() * allWords.length)];
     }
   }
-
-  // 渲染货架
   shelfWords.forEach(w => {
     const div = document.createElement("div");
     div.className = "item";
@@ -526,13 +446,13 @@ function renderShelf() {
   });
 }
 
-function updateScore(){ 
+function updateScore(){
   if(score < 0) score = 0;
   if(score > 100) score = 100;
-  scoreDiv.textContent=`得分：${Math.round(score)}`; // 显示整数即可
-  if(score >= 100){ 
-      endScreen.style.display="flex"; 
-      endScreen.onclick = ()=>location.reload(); 
+  scoreDiv.textContent=`得分：${Math.round(score)}`;
+  if(score >= 100){
+    endScreen.style.display="flex";
+    endScreen.onclick = ()=>location.reload();
   }
 }
 
