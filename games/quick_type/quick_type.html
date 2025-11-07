@@ -232,12 +232,14 @@
 
     // ✅ 监听从 WordList.html 返回的数据
     window.addEventListener('message', event => {
+      console.log('📩 收到消息：', event.data);
       const { type, csvText, csv } = event.data || {};
       const text = csvText || csv; // ✅ 兼容两种字段
+
       if (type === 'csvData' && typeof text === 'string') {
         const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-        const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
         importedWords = [];
+
         for (const line of lines) {
           const parts = line.split(',');
           if (parts.length < 2) continue;
@@ -265,7 +267,6 @@
         }
       }
     });
-
     // ------------------ 开始一局 ------------------
     function renderLettersInputs(target){
       lettersWrap.innerHTML='';
