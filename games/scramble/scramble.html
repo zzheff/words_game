@@ -190,10 +190,8 @@ const submitBtn = document.getElementById('submitBtn');
 const hintBtn = document.getElementById('hintBtn');
 const missedList = document.getElementById('missedList');
 const settingsOverlay = document.getElementById('settingsOverlay');
-const csvFile = document.getElementById('csvFile');
 const csvBtn = document.getElementById('csvBtn');
 const errorOverlay = document.getElementById('errorOverlay');
-
 const successSound = document.getElementById('successSound');
 const errorSound = document.getElementById('errorSound');
 
@@ -228,8 +226,8 @@ function renderWord(){
       left = Math.random() * (areaW - width);
       top = Math.random() * (areaH - height);
       for(const pos of placed){
-        if(!(left + width < pos.left || left > pos.left + width || 
-             top + height < pos.top || top > pos.top + height)){
+        if(!(left + width < pos.left || left > pos.left + width ||
+              top + height < pos.top || top > pos.top + height)){
           overlap = true;
           break;
         }
@@ -324,46 +322,44 @@ hintBtn.addEventListener('click', ()=>{
   }
 });
 
-csvBtn.addEventListener('click', ()=> csvFile.click());
+// ✅ 修改后的导入逻辑：打开 WordList.html
+csvBtn.addEventListener('click', ()=>{
+  const newWin = window.open('../public/WordList.html', '_blank');
+  if (!newWin) alert('请允许弹出窗口以导入词表');
+});
 
-csvFile.addEventListener('change', ()=>{
-  if(csvFile.files.length > 0){
-    const file = csvFile.files[0];
-    const reader = new FileReader();
-    reader.onload = e => {
-      const text = e.target.result;
-      const lines = text.split(/\r?\n/).filter(line=>line.trim());
-      words = lines.map(line=>{
-        const parts = line.split(',');
-        let en = parts[0].trim();
-        let cn = parts[1] ? parts[1].trim() : '';
-        if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
-        return {en, cn};
-      });
-      currentIndex = 0;
-      currentWord = words[currentIndex].en.split('');
-      settingsOverlay.style.display = 'none';
-      renderWord();
-    };
-    reader.readAsText(file);
+// ✅ 接收 WordList.html 传回的 CSV 数据
+window.addEventListener('message', (event)=>{
+  if (event.data && event.data.type === 'csvData') {
+    const csvText = event.data.data || event.data.csvText || '';
+    const lines = csvText.split(/\r?\n/).filter(line=>line.trim());
+    words = lines.map(line=>{
+      const parts = line.split(',');
+      let en = parts[0].trim();
+      let cn = parts[1] ? parts[1].trim() : '';
+      if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
+      return {en, cn};
+    });
+    currentIndex = 0;
+    currentWord = words[currentIndex].en.split('');
+    settingsOverlay.style.display = 'none';
+    renderWord();
   }
 });
-const retryMissedBtn = document.getElementById('retryMissedBtn');
 
+const retryMissedBtn = document.getElementById('retryMissedBtn');
 retryMissedBtn.addEventListener('click', ()=>{
   if(missed.length === 0){
     alert('没有未答单词可重练！');
     return;
   }
-  // 把 missed 转成单词对象数组
-  words = missed.map(enWord => ({en: enWord, cn: ''})); // 中文如果你想保留，可以在导入 CSV 时记录
+  words = missed.map(enWord => ({en: enWord, cn: ''}));
   currentIndex = 0;
   currentWord = words[currentIndex].en.split('');
-  missed = []; // 清空未答单词列表
+  missed = [];
   updateMissedList();
   renderWord();
 });
-
 </script>
 
 </body>
