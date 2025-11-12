@@ -328,23 +328,49 @@ csvBtn.addEventListener('click', ()=>{
   if (!newWin) alert('请允许弹出窗口以导入词表');
 });
 
-// ✅ 接收 WordList.html 传回的 CSV 数据
-window.addEventListener('message', (event)=>{
-  if (event.data && event.data.type === 'csvData') {
-    const csvText = event.data.data || event.data.csvText || '';
-    const lines = csvText.split(/\r?\n/).filter(line=>line.trim());
-    words = lines.map(line=>{
-      const parts = line.split(',');
-      let en = parts[0].trim();
-      let cn = parts[1] ? parts[1].trim() : '';
-      if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
-      return {en, cn};
-    });
-    currentIndex = 0;
-    currentWord = words[currentIndex].en.split('');
-    settingsOverlay.style.display = 'none';
-    renderWord();
+// ✅ 接收 WordList.html 传回的 CSV 数据（修正版）
+window.addEventListener('message', (event) => {
+  if (!event.data) return;
+
+  // 打印调试信息，确保能看到传入内容
+  console.log('收到消息：', event.data);
+
+  // 兼容不同字段命名
+  let csvText = '';
+  if (event.data.type === 'csvData') {
+    csvText = event.data.data || event.data.csvText || '';
+  } else if (typeof event.data === 'string' && event.data.includes(',')) {
+    // 兼容旧格式
+    csvText = event.data;
   }
+
+  if (!csvText.trim()) {
+    alert('⚠️ 未收到有效的 CSV 数据，请检查 WordList.html 是否发送正确。');
+    return;
+  }
+
+  // 解析 CSV 内容
+  const lines = csvText.split(/\r?\n/).filter(line => line.trim());
+  words = lines.map(line => {
+    const parts = line.split(',');
+    let en = parts[0] ? parts[0].trim() : '';
+    let cn = parts[1] ? parts[1].trim() : '';
+    if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
+    return { en, cn };
+  }).filter(w => w.en); // ✅ 确保有英文单词
+
+  if (words.length === 0) {
+    alert('⚠️ 没有解析到单词，请确认 CSV 格式正确（如：apple,苹果）');
+    return;
+  }
+
+  // ✅ 开始游戏
+  currentIndex = 0;
+  currentWord = words[currentIndex].en.split('');
+  settingsOverlay.style.display = 'none';
+  renderWord();
+
+  console.log('✅ 成功加载单词：', words);
 });
 
 const retryMissedBtn = document.getElementById('retryMissedBtn');
