@@ -16,8 +16,6 @@ body {
   padding: 20px;
   overflow: hidden;
 }
-
-/* 添加一个半透明遮罩，保证字母可读 */
 body::before {
   content: "";
   position: fixed;
@@ -26,7 +24,6 @@ body::before {
   background: rgba(0,0,0,0.5);
   z-index:-1;
 }
-
 h1 { margin-bottom: 10px; }
 .word-container, .input-container { margin: 15px 0; position: relative; }
 .letters {
@@ -50,7 +47,6 @@ h1 { margin-bottom: 10px; }
   transition: transform 0.2s;
 }
 .letter:hover { transform: scale(1.1); }
-
 .slots { display: flex; gap: 10px; margin-bottom: 10px; }
 .slot {
   width: 40px;
@@ -95,7 +91,6 @@ button {
   padding:5px 10px; margin-left:10px;
   border:none; border-radius:5px; cursor:pointer;
 }
-/* 错误提示图片遮罩 */
 #errorOverlay {
   position: fixed;
   top:0; left:0;
@@ -108,8 +103,6 @@ button {
   max-width: 300px;
   border-radius: 10px;
 }
-
-/* ✨ 动画效果 ✨ */
 @keyframes glow {
   0% { box-shadow: 0 0 0px gold; }
   50% { box-shadow: 0 0 20px gold; }
@@ -134,7 +127,6 @@ button {
 
 <div id="settingsOverlay">
   <h2>游戏设置</h2>
-  <input type="file" id="csvFile" accept=".csv" style="display:none;">
   <button id="csvBtn">导入单词 CSV</button>
 </div>
 
@@ -160,17 +152,14 @@ button {
   <button id="retryMissedBtn" style="margin-left:10px; padding:5px 10px; font-size:14px; cursor:pointer;">重练</button>
 </div>
 
-<!-- 错误图片遮罩 -->
 <div id="errorOverlay">
   <img src="error.png" alt="错误提示">
 </div>
 
-<!-- 音效 -->
 <audio id="successSound" src="success.mp3" preload="auto"></audio>
 <audio id="errorSound" src="error.mp3" preload="auto"></audio>
 
 <script>
-
 let words = [
   {en:"apple", cn:"苹果"},
   {en:"banana", cn:"香蕉"},
@@ -180,6 +169,7 @@ let currentIndex = 0;
 let currentWord = words[currentIndex].en.split('');
 let answerSlots = [];
 let missed = [];
+let csvReceived = false;
 
 const lettersDiv = document.getElementById('letters');
 const slotsDiv = document.getElementById('slots');
@@ -194,12 +184,10 @@ const csvBtn = document.getElementById('csvBtn');
 const errorOverlay = document.getElementById('errorOverlay');
 const successSound = document.getElementById('successSound');
 const errorSound = document.getElementById('errorSound');
+const retryMissedBtn = document.getElementById('retryMissedBtn');
 
 function shuffle(array){ return array.sort(()=>Math.random()-0.5); }
-
-function updateMissedList(){
-  missedList.textContent = missed.join(', ');
-}
+function updateMissedList(){ missedList.textContent = missed.join(', '); }
 
 function renderWord(){
   feedbackDiv.style.opacity = 1;
@@ -207,20 +195,16 @@ function renderWord(){
   lettersDiv.innerHTML = '';
   slotsDiv.innerHTML = '';
   answerSlots = Array(currentWord.length).fill('');
-
   const letters = shuffle([...currentWord]);
   const areaW = 480, areaH = 260;
   const placed = [];
-
   letters.forEach(letter=>{
     const span = document.createElement('div');
     span.className = 'letter';
     span.textContent = letter;
     span.draggable = true;
-
     let left, top, overlap;
     const width = 60, height = 60;
-
     do {
       overlap = false;
       left = Math.random() * (areaW - width);
@@ -228,20 +212,16 @@ function renderWord(){
       for(const pos of placed){
         if(!(left + width < pos.left || left > pos.left + width ||
               top + height < pos.top || top > pos.top + height)){
-          overlap = true;
-          break;
+          overlap = true; break;
         }
       }
     } while(overlap);
-
     placed.push({left, top});
     span.style.left = left + 'px';
     span.style.top = top + 'px';
-
     span.addEventListener('dragstart', e => e.dataTransfer.setData('text', letter));
     lettersDiv.appendChild(span);
   });
-
   for(let i=0; i<currentWord.length; i++){
     const slot = document.createElement('div');
     slot.className = 'slot';
@@ -256,7 +236,6 @@ function renderWord(){
     });
     slotsDiv.appendChild(slot);
   }
-
   progressDiv.textContent = `已完成: ${currentIndex} / ${words.length}`;
 }
 
@@ -307,13 +286,11 @@ submitBtn.addEventListener('click', ()=>{
     updateMissedList();
   }
 });
-
 errorOverlay.addEventListener('click', ()=>{
   errorOverlay.style.display = 'none';
   inputWord.value = '';
   nextWord();
 });
-
 hintBtn.addEventListener('click', ()=>{
   if(words[currentIndex]){
     feedbackDiv.textContent = `提示: ${words[currentIndex].cn}`;
@@ -321,59 +298,34 @@ hintBtn.addEventListener('click', ()=>{
     setTimeout(()=>{ feedbackDiv.style.opacity = 0; }, 3000);
   }
 });
-
-// ✅ 修改后的导入逻辑：打开 WordList.html
 csvBtn.addEventListener('click', ()=>{
   const newWin = window.open('../public/WordList.html', '_blank');
   if (!newWin) alert('请允许弹出窗口以导入词表');
 });
-
-// ✅ 接收 WordList.html 传回的 CSV 数据（修正版）
 window.addEventListener('message', (event) => {
-  if (!event.data) return;
-
-  // 打印调试信息，确保能看到传入内容
-  console.log('收到消息：', event.data);
-
-  // 兼容不同字段命名
-  let csvText = '';
-  if (event.data.type === 'csvData') {
-    csvText = event.data.data || event.data.csvText || '';
-  } else if (typeof event.data === 'string' && event.data.includes(',')) {
-    // 兼容旧格式
-    csvText = event.data;
+  if (!event.data || csvReceived) return;
+  if (event.data.type === 'csvData' && event.data.csv) {
+    csvReceived = true;
+    const csvText = event.data.csv;
+    const lines = csvText.split(/\r?\n/).filter(line => line.trim());
+    words = lines.map(line=>{
+      const parts = line.split(',');
+      let en = parts[0]?.trim() || '';
+      let cn = parts[1]?.trim() || '';
+      if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
+      return {en, cn};
+    }).filter(w=>w.en);
+    if (words.length === 0){
+      alert('⚠️ CSV 格式错误，请确认每行格式为：apple,苹果');
+      return;
+    }
+    settingsOverlay.style.display = 'none';
+    currentIndex = 0;
+    currentWord = words[currentIndex].en.split('');
+    renderWord();
+    console.log('✅ 成功加载单词：', words);
   }
-
-  if (!csvText.trim()) {
-    alert('⚠️ 未收到有效的 CSV 数据，请检查 WordList.html 是否发送正确。');
-    return;
-  }
-
-  // 解析 CSV 内容
-  const lines = csvText.split(/\r?\n/).filter(line => line.trim());
-  words = lines.map(line => {
-    const parts = line.split(',');
-    let en = parts[0] ? parts[0].trim() : '';
-    let cn = parts[1] ? parts[1].trim() : '';
-    if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
-    return { en, cn };
-  }).filter(w => w.en); // ✅ 确保有英文单词
-
-  if (words.length === 0) {
-    alert('⚠️ 没有解析到单词，请确认 CSV 格式正确（如：apple,苹果）');
-    return;
-  }
-
-  // ✅ 开始游戏
-  currentIndex = 0;
-  currentWord = words[currentIndex].en.split('');
-  settingsOverlay.style.display = 'none';
-  renderWord();
-
-  console.log('✅ 成功加载单词：', words);
 });
-
-const retryMissedBtn = document.getElementById('retryMissedBtn');
 retryMissedBtn.addEventListener('click', ()=>{
   if(missed.length === 0){
     alert('没有未答单词可重练！');
