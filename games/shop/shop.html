@@ -141,17 +141,6 @@
     justify-content: center;
     flex: 0 0 200px;
   }
-
-  /* iframe 样式 */
-  #wordlistFrame {
-    width: 95%;
-    max-width: 800px;
-    height: 60vh;
-    border: 3px solid #a6c9e2;
-    border-radius: 12px;
-    display: none;
-    margin: 10px auto;
-  }
 </style>
 </head>
 <body>
@@ -175,8 +164,8 @@
 
 <div id="endScreen"><img src="https://cdn-icons-png.flaticon.com/512/190/190411.png"></div>
 
-<!-- iframe 内嵌 WordList.html -->
-<iframe id="wordlistFrame" src="../public/WordList.html"></iframe>
+<!-- File Input 隐藏 -->
+<input type="file" id="csvFile" accept=".csv" style="display:none">
 
 <script>
 let words = [];
@@ -217,16 +206,18 @@ document.getElementById("pauseBtn").addEventListener("click", () => {
   document.getElementById("pauseBtn").textContent = isPaused ? "继续游戏 ▶️" : "暂停游戏 ⏸️";
 });
 
-// ✅ 修改后的导入逻辑：显示 iframe
-const wordlistFrame = document.getElementById("wordlistFrame");
+// ✅ 导入 CSV
+const csvFileInput = document.getElementById("csvFile");
 document.getElementById("importBtn").addEventListener("click", () => {
-  wordlistFrame.style.display = "block";
+  csvFileInput.click();
 });
 
-// ✅ 接收 WordList.html 发回的单词数据
-window.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "csvData" && event.data.csv && event.data.csv.trim().length > 0) {
-    const csvText = event.data.csv;
+csvFileInput.addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const csvText = evt.target.result;
     const lines = csvText.split(/\r?\n/);
     words = [];
     for (let line of lines) {
@@ -245,14 +236,15 @@ window.addEventListener("message", (event) => {
       return;
     }
 
-    // ✅ 收到 CSV 后隐藏 iframe 并启动游戏
-    wordlistFrame.style.display = "none";
+    // ✅ CSV 导入成功后启动游戏
     gameStarted = true;
     prepareCustomers();
     spawnCustomers();
-  }
+  };
+  reader.readAsText(file, "utf-8");
 });
 
+// === 以下保持原逻辑 ===
 function prepareCustomers() {
   customersQueue = [];
   const selectedWords = [];
@@ -484,8 +476,7 @@ function updateScore(){
 }
 
 function clearAllTimers(){ timers.forEach(t=>clearInterval(t)); timers=[]; }
-
-
+  
 </script>
 </body>
 </html>
