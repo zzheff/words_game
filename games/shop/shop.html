@@ -203,41 +203,58 @@ document.getElementById("pauseBtn").addEventListener("click", () => {
   document.getElementById("pauseBtn").textContent = isPaused ? "继续游戏 ▶️" : "暂停游戏 ⏸️";
 });
 
-// ✅ 修改后的导入逻辑：打开 WordList.html
+// ✅ 修改后的导入逻辑：点击按钮打开 WordList.html
 document.getElementById("importBtn").addEventListener("click", () => {
-  window.open("../public/WordList.html", "_blank", "width=800,height=600");
+  const newWin = window.open("../public/WordList.html", "wordlist", "width=800,height=600");
+  if (!newWin) alert("请允许弹出窗口以导入词表");
 });
 
 // ✅ 接收 WordList.html 发回的单词数据
 window.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "csvData" && event.data.csv && event.data.csv.trim().length > 0) {
-    const csvText = event.data.csv;
-    const lines = csvText.split(/\r?\n/);
-    words = [];
+  if (!event.data) return;
+
+  const { type, csv } = event.data;
+
+  if (type === "csvData" && csv && csv.trim().length > 0) {
+    const csvText = csv;
+    const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
+    
+    const newWords = [];
     for (let line of lines) {
-      if (!line.trim()) continue;
-      const [en, cn] = line.split(",");
-      if (en && cn) words.push({ en: en.trim(), cn: cn.trim() });
+      const parts = line.split(",");
+      if (parts.length < 2) continue;
+
+      let en = parts[0].trim();
+      let cn = parts[1].trim();
+
+      // 自动判断哪列是英文
+      if (!/[a-zA-Z]/.test(en) && /[a-zA-Z]/.test(cn)) {
+        [en, cn] = [cn, en];
+      }
+
+      newWords.push({ en, cn });
     }
 
-    if (words.length === 0) {
+    if (newWords.length === 0) {
       alert("未接收到有效单词，请重新选择。");
       return;
     }
-    if (words.length > 15) {
-      alert(`你导入了 ${words.length} 对单词，最多允许 15 对，请删减后重新导入。`);
-      words = [];
+
+    if (newWords.length > 15) {
+      alert(`你导入了 ${newWords.length} 对单词，最多允许 15 对，请删减后重新导入。`);
       return;
     }
 
-    // ✅ 只有确认收到有效CSV后才启动游戏
+    // ✅ 更新全局单词列表
+    words = newWords;
+
+    // ✅ 只有确认收到有效 CSV 后才启动游戏
     gameStarted = true;
     prepareCustomers();
     spawnCustomers();
   }
 });
 
-// === 以下保持不变 ===
 
 function prepareCustomers() {
   customersQueue = [];
