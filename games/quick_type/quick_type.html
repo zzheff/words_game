@@ -204,9 +204,9 @@
       if(_bgNext){ try{ scene.removeChild(_bgNext);}catch(e){} _bgNext=null; }
     }
 
-    // ------------------ CSV 导入单词 ------------------
+    // ------------------ CSV 导入单词（整页跳转 SPA 版本） ------------------
     let importedWords = [];
-    let remainingWords = []; // ✅ 保存当前还没答对的单词
+    let remainingWords = []; // 保存当前未答对的单词
 
     function pickRandomWord() {
       if (remainingWords.length === 0) {
@@ -218,49 +218,52 @@
 
     const importBtn = document.getElementById('importBtn');
 
-    // ✅ 点击按钮时打开上级目录的 WordList.html
+    // === 点击按钮：整页跳转到 WordList.html ===
     importBtn.addEventListener('click', () => {
-      const win = window.open('../public/WordList.html', '_blank');
-      if (!win) {
-        alert('请允许弹出窗口，以便选择词表。');
-      }
+      const returnURL = encodeURIComponent(window.location.pathname);
+      window.location.href = `../public/WordList.html?returnURL=${returnURL}`;
     });
 
-    // ✅ 监听从 WordList.html 返回的数据
-    window.addEventListener('message', event => {
-      console.log('📩 收到消息：', event.data);
-      const { type, csvText, csv } = event.data || {};
-      const text = csvText || csv; // ✅ 兼容两种字段
+    // === 页面载入后：自动检查 localStorage 是否有词表 ===
+    window.addEventListener("DOMContentLoaded", () => {
+      const csvText = localStorage.getItem("csv_data");
+      if (!csvText) return;
 
-      if (type === 'csvData' && typeof text === 'string') {
-        const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-        importedWords = [];
+      // 用完即删，避免多次触发
+      localStorage.removeItem("csv_data");
 
-        for (const line of lines) {
-          const parts = line.split(',');
-          if (parts.length < 2) continue;
-          const col1 = parts[0].trim();
-          const col2 = parts[1].trim();
-          if (!col1 || !col2) continue;
+      const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
+      importedWords = [];
 
-          let eng = '', chi = '';
-          if (/[a-zA-Z]/.test(col1) && !/[a-zA-Z]/.test(col2)) {
-            eng = col1; chi = col2;
-          } else if (/[a-zA-Z]/.test(col2) && !/[a-zA-Z]/.test(col1)) {
-            eng = col2; chi = col1;
-          } else {
-            eng = col1; chi = col2;
-          }
-          importedWords.push([eng, chi]);
-        }
+      for (const line of lines) {
+        const parts = line.split(',');
+        if (parts.length < 2) continue;
 
-        if (importedWords.length > 0) {
-          remainingWords = [...importedWords];
-          alert(`✅ 已成功接收 ${importedWords.length} 个单词`);
-          feedback.textContent = '词表已加载，点击“开始”开始游戏';
+        const col1 = parts[0].trim();
+        const col2 = parts[1]?.trim() || '';
+
+        if (!col1 || !col2) continue;
+
+        let eng = '', chi = '';
+
+        // 判断哪一列是英文
+        if (/[a-zA-Z]/.test(col1) && !/[\u4e00-\u9fa5]/.test(col1)) {
+          eng = col1; chi = col2;
+        } else if (/[a-zA-Z]/.test(col2) && !/[\u4e00-\u9fa5]/.test(col2)) {
+          eng = col2; chi = col1;
         } else {
-          alert('⚠️ 未检测到有效单词数据');
+          eng = col1; chi = col2;
         }
+
+        importedWords.push([eng, chi]);
+      }
+
+      if (importedWords.length > 0) {
+        remainingWords = [...importedWords];
+        alert(`✅ 已加载 ${importedWords.length} 个单词！`);
+        feedback.textContent = '词表已加载，点击“开始”开始游戏';
+      } else {
+        alert('⚠️ 未检测到有效单词数据');
       }
     });
     // ------------------ 开始一局 ------------------
