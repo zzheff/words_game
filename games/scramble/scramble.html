@@ -303,27 +303,48 @@ csvBtn.addEventListener('click', ()=>{
   if (!newWin) alert('请允许弹出窗口以导入词表');
 });
 window.addEventListener('message', (event) => {
+  console.log("📩 收到消息：", event.data);
+
   if (!event.data || csvReceived) return;
-  if (event.data.type === 'csvData' && event.data.csv) {
+
+  const { type, csvText, csv } = event.data || {};
+  const text = csvText || csv;
+
+  if (type === "csvData" && typeof text === "string") {
     csvReceived = true;
-    const csvText = event.data.csv;
-    const lines = csvText.split(/\r?\n/).filter(line => line.trim());
+
+    const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+
     words = lines.map(line=>{
       const parts = line.split(',');
-      let en = parts[0]?.trim() || '';
-      let cn = parts[1]?.trim() || '';
-      if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
-      return {en, cn};
-    }).filter(w=>w.en);
-    if (words.length === 0){
-      alert('⚠️ CSV 格式错误，请确认每行格式为：apple,苹果');
+      if (parts.length < 2) return null;
+
+      let col1 = parts[0].trim();
+      let col2 = parts[1].trim();
+
+      // 自动判断中英放哪
+      let en='', cn='';
+      if (/[a-zA-Z]/.test(col1) && !/[\u4e00-\u9fa5]/.test(col1)) {
+        en = col1; cn = col2;
+      } else {
+        en = col2; cn = col1;
+      }
+
+      return { en, cn };
+    }).filter(w=>w && w.en);
+
+    if (words.length === 0) {
+      alert("⚠️ CSV 格式错误，请确认格式为： apple,苹果");
       return;
     }
-    settingsOverlay.style.display = 'none';
+
+    settingsOverlay.style.display = "none";
+
     currentIndex = 0;
     currentWord = words[currentIndex].en.split('');
     renderWord();
-    console.log('✅ 成功加载单词：', words);
+
+    console.log("✅ 成功加载单词：", words);
   }
 });
 retryMissedBtn.addEventListener('click', ()=>{
