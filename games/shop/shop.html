@@ -80,7 +80,7 @@ document.getElementById("pauseBtn").addEventListener("click", ()=>{
 
 // ✅ 修正后的导入 CSV 路径：确保打开 WordList.html 成功
 document.getElementById("importBtn").addEventListener("click", ()=>{
-  const newWin=window.open("public/WordList.html","wordlist","width=800,height=600");
+  const newWin=window.open("../public/WordList.html","wordlist","width=800,height=600");
   if(!newWin) alert("请允许弹出窗口以导入词表");
 });
 
