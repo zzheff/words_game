@@ -237,26 +237,31 @@ const wrongSound = document.getElementById('wrongSound');
 const overlay = document.getElementById('overlay');
 const importBtn = document.getElementById('importBtn');
 
-// 点击按钮打开 WordList.html 新窗口
+// === 修改后的导入单词逻辑（整页跳转 SPA） ===
 importBtn.addEventListener('click', () => {
-  window.open('../public/WordList.html', 'wordListWindow', 'width=800,height=600');
+  // 把当前页面路径作为 returnURL 传给 WordList.html
+  const returnURL = encodeURIComponent(window.location.pathname);
+  window.location.href = `../public/WordList.html?returnURL=${returnURL}`;
 });
 
-// 接收WordList.html传回的数据并自动开始游戏
-window.addEventListener('message', function(e) {
-  if(e.data && e.data.type === 'csvData') {
-    const csvText = e.data.csv;
-    if(!csvText) return;
-    const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
-    floors = lines.map(line => {
-      const parts = line.split(',');
-      let en = parts[0].trim();
-      let cn = parts[1] ? parts[1].trim() : '';
-      if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
-      return { en, cn, word: en };
-    });
-    if(floors.length > 0) startGame(); // 接收后直接开始游戏
-  }
+// === 页面载入后自动检查是否有 csv_data ===
+window.addEventListener("DOMContentLoaded", () => {
+  const csvText = localStorage.getItem("csv_data");
+  if (!csvText) return;
+
+  // 用完清掉，避免重复
+  localStorage.removeItem("csv_data");
+
+  const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
+  floors = lines.map(line => {
+    const parts = line.split(',');
+    let en = parts[0]?.trim() || '';
+    let cn = parts[1]?.trim() || '';
+    if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
+    return { en, cn, word: en };
+  });
+
+  if (floors.length > 0) startGame(); // 自动开始游戏
 });
 
 //预加载图片
