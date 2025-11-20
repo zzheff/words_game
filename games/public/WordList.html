@@ -31,6 +31,7 @@
 </style>
 </head>
 <body>
+
 <h1>选择或创建词表</h1>
 <div class="container">
   <!-- 内置词表 -->
@@ -52,7 +53,11 @@
 </div>
 
 <script>
-  // ---------- 自定义词表逻辑 ----------
+  // ========== 让页面知道跳回哪里（主页面带?returnURL=xxx 进来） ==========
+  const params = new URLSearchParams(window.location.search);
+  const returnURL = params.get("returnURL") || "../index.html";
+
+  // ====== 自定义词表逻辑 ======
   const customLists = JSON.parse(localStorage.getItem('customLists') || '[]');
   const ul = document.getElementById('customLists');
   renderLists();
@@ -61,11 +66,13 @@
     ul.innerHTML = '';
     customLists.forEach((list, index) => {
       const li = document.createElement('li');
-      li.innerHTML = `<span>${list.name}（${list.words.length} 个词）</span>
-                      <div>
-                        <button onclick="loadList(${index})">加载</button>
-                        <button onclick="deleteList(${index})">删除</button>
-                      </div>`;
+      li.innerHTML = `
+        <span>${list.name}（${list.words.length} 个词）</span>
+        <div>
+          <button onclick="loadList(${index})">加载</button>
+          <button onclick="deleteList(${index})">删除</button>
+        </div>
+      `;
       ul.appendChild(li);
     });
   }
@@ -92,20 +99,17 @@
     }
   }
 
-  // ✅ 加载自定义词表并发给父窗口
+  // --- 📱 加载词表 → 保存到 localStorage → 跳回主页面 ---
   function loadList(index) {
     const list = customLists[index];
     const csvText = list.words.map(w => `${w.en},${w.cn}`).join('\n');
 
-    if (window.opener) {
-      window.opener.postMessage({ type: 'csvData', csv: csvText }, '*');
-      window.close();
-    } else {
-      alert('⚠️ 无法与父页面通信');
-    }
+    localStorage.setItem("csv_data", csvText); // 给主页面的数据
+    window.location.href = returnURL; // 返回主页面
   }
 
-  // ---------- 内置词表逻辑 ----------
+
+  // ========== 内置词表逻辑 ==========
   const builtinContainer = document.getElementById('builtinList');
 
   function loadBuiltIn() {
@@ -120,26 +124,24 @@
     items.forEach(item => {
       const btn = document.createElement('button');
       btn.textContent = item.name;
+
       btn.onclick = async () => {
         if (item.type === 'file') {
           try {
             const res = await fetch(item.path);
             if (!res.ok) throw new Error('文件未找到');
             const text = await res.text();
+
             const lines = text.trim().split(/\r?\n/);
             const words = lines
               .map(line => line.split(','))
               .filter(a => a.length === 2)
               .map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
 
-            // ✅ 直接发给父窗口
+            // 📱 保存并跳回主页面
             const csvText = words.map(w => `${w.en},${w.cn}`).join('\n');
-            if (window.opener) {
-              window.opener.postMessage({ type: 'csvData', csv: csvText }, '*');
-              window.close();
-            } else {
-              alert('⚠️ 无法与父页面通信');
-            }
+            localStorage.setItem("csv_data", csvText);
+            window.location.href = returnURL;
 
           } catch (err) {
             alert('❌ 无法加载词库，请确保文件存在');
@@ -147,6 +149,7 @@
           }
         }
       };
+
       builtinContainer.appendChild(btn);
     });
   }
