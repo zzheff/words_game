@@ -166,28 +166,33 @@ window.addEventListener('touchmove',e=>{
   handlePointer(t.clientX,t.clientY);
 });
 
-// === 修改后的导入单词逻辑 ===
-// 点击按钮打开 WordList.html 新窗口
+// === 修改后的导入单词逻辑（SPA 整页跳转） ===
 document.getElementById('importBtn').addEventListener('click', () => {
-  window.open('../public/WordList.html', 'wordListWindow', 'width=800,height=600');
+  // 整页跳转到词表页，并把当前页面地址当作 returnURL 传过去
+  const returnURL = encodeURIComponent(window.location.pathname);
+  window.location.href = `../public/WordList.html?returnURL=${returnURL}`;
 });
 
-// 接收 WordList.html 传回的数据并生成热点
-window.addEventListener('message', function(e) {
-  if(e.data && e.data.type === 'csvData') {
-    const csvText = e.data.csv;
-    if(!csvText) return;
-    const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
-    HOTSPOTS = [];
-    lines.forEach(line => {
-      const parts = line.split(',');
-      let en = parts[0]?.trim() || '';
-      let cn = parts[1]?.trim() || '';
-      if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
-      if(en && cn) HOTSPOTS.push({ english: en, chinese: cn });
-    });
-    if (HOTSPOTS.length > 0) createHotspots();
-  }
+// === flash 页面载入后自动检查是否有词表数据 ===
+window.addEventListener("DOMContentLoaded", () => {
+  const csvText = localStorage.getItem("csv_data");
+  if (!csvText) return;
+
+  // 用完清除
+  localStorage.removeItem("csv_data");
+
+  const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
+  HOTSPOTS = [];
+
+  lines.forEach(line => {
+    const parts = line.split(',');
+    let en = parts[0]?.trim() || '';
+    let cn = parts[1]?.trim() || '';
+    if (/[\u4e00-\u9fa5]/.test(en)) [en, cn] = [cn, en];
+    if (en && cn) HOTSPOTS.push({ english: en, chinese: cn });
+  });
+
+  if (HOTSPOTS.length > 0) createHotspots();
 });
 
 // 刷新单词显示
