@@ -299,43 +299,32 @@ hintBtn.addEventListener('click', ()=>{
   }
 });
 
-// ================= CSV 导入逻辑修复 =================
-csvBtn.addEventListener('click', () => {
-  // 传入绝对 returnURL，避免 404
-  const returnURL = encodeURIComponent(window.location.href);
-  window.location.href = `../public/WordList.html?returnURL=${returnURL}`;
+// ===== 修复弹窗导入功能 =====
+csvBtn.addEventListener('click', ()=>{
+  const newWin = window.open('../public/WordList.html', 'wordlist', 'width=600,height=400');
+  if (!newWin) alert('请允许弹出窗口以导入词表');
 });
 
-// 兼容 postMessage 回传
 window.addEventListener('message', (event) => {
-  console.log("📩 收到消息：", event.data);
   if (!event.data || csvReceived) return;
 
-  const { type, csvText, csv } = event.data || {};
-  const text = csvText || csv;
-
-  if (type === "csvData" && typeof text === "string") {
+  const { type, csv } = event.data || {};
+  if (type === "csvData" && typeof csv === "string") {
     csvReceived = true;
-
-    const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+    const lines = csv.split(/\r?\n/).filter(l => l.trim() !== '');
     words = lines.map(line=>{
       const parts = line.split(',');
       if (parts.length < 2) return null;
-
-      let col1 = parts[0].trim();
-      let col2 = parts[1].trim();
-
       let en='', cn='';
-      if (/[a-zA-Z]/.test(col1) && !/[\u4e00-\u9fa5]/.test(col1)) {
-        en = col1; cn = col2;
+      if (/[a-zA-Z]/.test(parts[0]) && !/[\u4e00-\u9fa5]/.test(parts[0])) {
+        en = parts[0].trim(); cn = parts[1].trim();
       } else {
-        en = col2; cn = col1;
+        en = parts[1].trim(); cn = parts[0].trim();
       }
-
       return { en, cn };
     }).filter(w=>w && w.en);
 
-    if (words.length === 0) {
+    if(words.length === 0){
       alert("⚠️ CSV 格式错误，请确认格式为： apple,苹果");
       return;
     }
@@ -344,48 +333,8 @@ window.addEventListener('message', (event) => {
     currentIndex = 0;
     currentWord = words[currentIndex].en.split('');
     renderWord();
-    console.log("✅ 成功加载单词：", words);
   }
 });
-
-// 兼容 localStorage 回传（WordList.html 用 localStorage + returnURL 跳回）
-window.addEventListener('DOMContentLoaded', () => {
-  if (csvReceived) return;
-
-  const csvText = localStorage.getItem('csv_data');
-  if (!csvText) return;
-
-  localStorage.removeItem('csv_data');
-  csvReceived = true;
-
-  const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
-  words = lines.map(line=>{
-    const parts = line.split(',');
-    if (parts.length < 2) return null;
-
-    let col1 = parts[0].trim();
-    let col2 = parts[1].trim();
-    let en='', cn='';
-    if (/[a-zA-Z]/.test(col1) && !/[\u4e00-\u9fa5]/.test(col1)) {
-      en = col1; cn = col2;
-    } else {
-      en = col2; cn = col1;
-    }
-    return { en, cn };
-  }).filter(w => w && w.en);
-
-  if (words.length === 0) {
-    alert("⚠️ CSV 格式错误，请确认格式为： apple,苹果");
-    return;
-  }
-
-  settingsOverlay.style.display = "none";
-  currentIndex = 0;
-  currentWord = words[currentIndex].en.split('');
-  renderWord();
-  console.log("✅ 从 localStorage 成功加载单词：", words);
-});
-// ======================================================
 
 retryMissedBtn.addEventListener('click', ()=>{
   if(missed.length === 0){
