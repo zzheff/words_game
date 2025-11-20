@@ -5,54 +5,169 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>flashlight</title>
 <style>
-body,html{margin:0;padding:0;height:100%;background:#030720;font-family:Arial,sans-serif;}
-.stage{position:relative;width:100%;height:100vh;overflow:hidden;}
-.scene{position:absolute;inset:0;background:#030720;}
+body,html{
+  margin:0;
+  padding:0;
+  height:100%;
+  background:#030720;
+  font-family:Arial,sans-serif;
+}
 
-/* 光圈 */
+/* 保持舞台充满屏幕 */
+.stage{
+  position:relative;
+  width:100%;
+  height:100vh;
+  overflow:hidden;
+}
+.scene{
+  position:absolute;
+  inset:0;
+  background:#030720;
+}
+
+/* ====================== 光圈 ======================= */
 .overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
+  position:absolute;
+  inset:0;
+  pointer-events:none;
   z-index:5;
-  background: transparent;
+  background:transparent;
 }
 .overlay::before {
   content:'';
   position:absolute;
   left:var(--x,50%);
   top:var(--y,50%);
-  width:150px;      /* 光圈直径，可调 */
+  width:150px;
   height:150px;
-  transform: translate(-50%,-50%);
+  transform:translate(-50%,-50%);
   border-radius:50%;
-  /* 从中心亮黄色到边缘透明 */
-  background: radial-gradient(circle, 
-              rgba(255, 255, 0, 0.6) 0%,    /* 中心亮黄 */
-              rgba(255, 255, 0, 0.2) 50%,   /* 中间淡黄 */
-              rgba(255, 255, 0, 0) 100%);   /* 边缘透明 */
-  pointer-events: none;
+  background: radial-gradient(circle,
+      rgba(255,255,0,0.6) 0%,
+      rgba(255,255,0,0.2) 50%,
+      rgba(255,255,0,0) 100%
+  );
 }
 
-/* 热点 */
+/* ====================== 热点 ======================= */
 .hotspots{position:absolute;inset:0;z-index:10;}
 .hotspot{position:absolute;}
+
 .star{
-  width:6px;height:6px;border-radius:50%;
+  width:6px;
+  height:6px;
+  border-radius:50%;
   background:rgba(255,255,100,0.7);
   transform:translate(-50%,-50%) scale(1);
   box-shadow:0 0 3px rgba(255,255,150,0.8);
   z-index:10;
 }
+
 .word{
-  position:absolute;transform:translate(-50%,-130%);
-  white-space:nowrap;padding:6px 10px;background:#fff;color:#000;font-weight:bold;font-size:18px;
-  border-radius:6px;box-shadow:0 3px 12px rgba(0,0,0,0.5);display:none;
+  position:absolute;
+  transform:translate(-50%,-130%);
+  white-space:nowrap;
+  padding:6px 10px;
+  background:#fff;
+  color:#000;
+  font-weight:bold;
+  font-size:18px;
+  border-radius:6px;
+  box-shadow:0 3px 12px rgba(0,0,0,0.5);
+  display:none;
   z-index:15;
 }
 
-.controls{position:absolute;top:10px;left:10px;display:flex;gap:10px;z-index:20;}
-.controls button{padding:6px 12px;border:none;border-radius:5px;background:#3a5f8f;color:#fff;cursor:pointer;}
+/* ====================== 控制按钮 ======================= */
+.controls{
+  position:absolute;
+  top:10px;
+  left:10px;
+  display:flex;
+  gap:10px;
+  z-index:20;
+}
+.controls button{
+  padding:6px 12px;
+  border:none;
+  border-radius:5px;
+  background:#3a5f8f;
+  color:#fff;
+  cursor:pointer;
+  font-size:14px;
+}
+
+/* ===================================================================
+   ===============  🌟 响应式：手机竖屏 / 横屏 / PC  ==================
+   =================================================================== */
+
+/* 📱 手机竖屏（常见：375×812 之类） */
+@media (max-width: 600px) and (orientation: portrait) {
+
+  .controls button {
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+
+  .word {
+    font-size: 14px;    /* 字体更小 */
+    padding: 4px 8px;
+  }
+
+  .overlay::before {
+    width:130px;         /* 光圈缩小一点 */
+    height:130px;
+  }
+
+  .star {
+    width:5px;
+    height:5px;
+  }
+}
+
+/* 📱 手机横屏（视野变宽） */
+@media (max-width: 900px) and (orientation: landscape) {
+
+  .word {
+    font-size: 16px;
+    padding: 5px 9px;
+  }
+
+  .overlay::before {
+    width:150px;        /* 横屏空间更大，光圈保持中等 */
+    height:150px;
+  }
+
+  .star {
+    width:6px;
+    height:6px;
+  }
+}
+
+/* 💻 电脑 or 大平板 */
+@media (min-width: 1200px) {
+
+  .controls button {
+    font-size:16px;
+    padding:8px 14px;
+  }
+
+  .word {
+    font-size:20px;
+    padding: 8px 12px;
+  }
+
+  .overlay::before {
+    width:200px;
+    height:200px;       /* 电脑光圈更大 */
+  }
+
+  .star {
+    width:8px;
+    height:8px;
+  }
+}
 </style>
 </head>
 <body>
