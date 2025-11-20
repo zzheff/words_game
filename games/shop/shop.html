@@ -164,9 +164,6 @@
 
 <div id="endScreen"><img src="https://cdn-icons-png.flaticon.com/512/190/190411.png"></div>
 
-<!-- File Input 隐藏 -->
-<input type="file" id="csvFile" accept=".csv" style="display:none">
-
 <script>
 let words = [];
 let score = 0;
@@ -206,18 +203,16 @@ document.getElementById("pauseBtn").addEventListener("click", () => {
   document.getElementById("pauseBtn").textContent = isPaused ? "继续游戏 ▶️" : "暂停游戏 ⏸️";
 });
 
-// ✅ 导入 CSV
-const csvFileInput = document.getElementById("csvFile");
+// ======= ✅ CSV 导入适配 WordList.html =======
 document.getElementById("importBtn").addEventListener("click", () => {
-  csvFileInput.click();
+  const currentURL = encodeURIComponent(window.location.href);
+  window.location.href = `../public/WordList.html?returnURL=${currentURL}`;
 });
 
-csvFileInput.addEventListener("change", e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(evt) {
-    const csvText = evt.target.result;
+// 页面加载时检查 localStorage 中 CSV 数据
+window.addEventListener("load", () => {
+  const csvText = localStorage.getItem("csv_data");
+  if (csvText && csvText.trim().length > 0) {
     const lines = csvText.split(/\r?\n/);
     words = [];
     for (let line of lines) {
@@ -236,15 +231,17 @@ csvFileInput.addEventListener("change", e => {
       return;
     }
 
-    // ✅ CSV 导入成功后启动游戏
+    // ✅ 成功导入后启动游戏
     gameStarted = true;
     prepareCustomers();
     spawnCustomers();
-  };
-  reader.readAsText(file, "utf-8");
+
+    // 清除 localStorage 避免重复导入
+    localStorage.removeItem("csv_data");
+  }
 });
 
-// === 以下保持原逻辑 ===
+// === 以下所有游戏逻辑保持不变 ===
 function prepareCustomers() {
   customersQueue = [];
   const selectedWords = [];
@@ -272,7 +269,6 @@ function spawnCustomers() {
   toShow.forEach(obj => addCustomer(obj));
   renderShelf();
 }
-
 
 function addCustomer(obj){
   const slots = Array.from(windowDiv.querySelectorAll(".customer-slot"));
@@ -323,7 +319,7 @@ function addCustomer(obj){
     patience-=2; inner.style.width=patience+"%";
     if (patience > 60) inner.style.background = "#91d18b";
     else if (patience > 30) inner.style.background = "#ffd166";
-    else inner.style.background = "#ff5c5c";
+    else inner.style.background = "#ff5c6c";
     if(patience<=0){
       clearInterval(timer);
       div.classList.add("angry");
@@ -340,7 +336,7 @@ function addCustomer(obj){
   },400);
   timers.push(timer);
 
-  renderShelf(); // ✅ 确保每个新顾客来时更新柜台
+  renderShelf(); 
 }
 
 function handleDrop(selected, div, obj){
@@ -411,7 +407,7 @@ function checkNextBatch(){
             const next = customersQueue.shift();
             if(next) {
               addCustomer(next);
-              renderShelf(); // ✅ 新顾客上场时刷新柜台
+              renderShelf(); 
             }
           }, delay);
         } else {
@@ -433,28 +429,23 @@ function renderShelf() {
   shopDiv.innerHTML = "";
   const maxItems = 18;
 
-  // === 新增：准备货架单词 ===
   const allWords = words.flatMap(w => [w.en, w.cn]);
   const activeNeeds = activeCustomers.map(c => [c.obj.need, c.obj.want]).flat();
   const shelfWords = [];
 
-  // 先放上顾客当前需求对应的答案，确保顾客要的词一定出现
   activeCustomers.forEach(c => {
     if (!shelfWords.includes(c.obj.want)) {
       shelfWords.push(c.obj.want);
     }
   });
 
-  // 然后补足货架
   while (shelfWords.length < maxItems && allWords.length > 0) {
     const w = allWords[Math.floor(Math.random() * allWords.length)];
     if (!shelfWords.includes(w)) shelfWords.push(w);
   }
 
-  // 打乱顺序
   shelfWords.sort(() => Math.random() - 0.5);
 
-  // 渲染到页面
   shelfWords.forEach(w => {
     const div = document.createElement("div");
     div.className = "item";
@@ -476,7 +467,6 @@ function updateScore(){
 }
 
 function clearAllTimers(){ timers.forEach(t=>clearInterval(t)); timers=[]; }
-  
 </script>
 </body>
 </html>
