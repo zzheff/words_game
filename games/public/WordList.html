@@ -16,18 +16,15 @@
   body { background: var(--bg); font-family: var(--font); margin: 0; padding: 20px; }
   h1 { text-align: center; color: #333; }
   .container { max-width: 700px; margin: 0 auto; background: var(--card); box-shadow: var(--shadow); border-radius: 16px; padding: 20px; }
-  .wordlist, .builtin-list { display: flex; flex-wrap: wrap; gap: 10px; }
-  .wordlist button, .builtin-list button { flex: 1 1 45%; background: var(--accent); color: white; border: none; border-radius: 8px; padding: 10px; cursor: pointer; font-size: 16px; transition: 0.2s; }
-  .wordlist button:hover, .builtin-list button:hover { opacity: 0.85; }
-  .custom-list { margin-top: 20px; }
-  .custom-list h2 { font-size: 18px; margin-bottom: 8px; }
+  .builtin-list, .custom-list, .lists { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .builtin-list button, .custom-list button, .lists button { flex: 1 1 45%; background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 10px; cursor: pointer; font-size: 16px; transition: 0.2s; }
+  .builtin-list button:hover, .custom-list button:hover, .lists button:hover { opacity: 0.85; }
   input, textarea { width: 100%; padding: 8px; margin-top: 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
   button.create { background: var(--accent2); color: white; border: none; padding: 10px 20px; margin-top: 10px; border-radius: 8px; cursor: pointer; }
-  .lists { margin-top: 20px; }
-  .lists ul { list-style: none; padding: 0; }
-  .lists li { background: #eef5ff; border-radius: 6px; padding: 8px 10px; margin-bottom: 5px; display: flex; justify-content: space-between; }
-  .lists li span { color: #333; }
-  .lists li button { background: #ff6666; border: none; color: white; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+  ul { list-style: none; padding: 0; width: 100%; }
+  li { background: #eef5ff; border-radius: 6px; padding: 8px 10px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+  li span { color: #333; }
+  li button { background: #ff6666; border: none; color: white; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -43,9 +40,10 @@
     <h2>✏️ 创建自定义词表</h2>
     <input id="listName" placeholder="请输入词表名称，如‘Unit 1 单词’">
     <textarea id="wordPairs" rows="5" placeholder="输入单词和中文，用英文逗号分隔，如：apple,苹果\nbook,书"></textarea>
-    <button class="create" onclick="createCustomList()">创建词表</button>
+    <button class="create" onclick="createCustomList()">创建并加载词表</button>
   </div>
 
+  <!-- 我的自定义词表 -->
   <div class="lists">
     <h2>📚 我的自定义词表</h2>
     <ul id="customLists"></ul>
@@ -53,117 +51,117 @@
 </div>
 
 <script>
-  // ===== 内置词表数据 =====
-  const vocabData = [
-    { "name": "外研社一年级（一年级起步）", "type": "file", "path": "words/小学/外研社一年级（一年级起步）.csv" },
-    { "name": "外研社三年级（一年级起步）", "type": "file", "path": "words/小学/外研社三年级（一年级起步）.csv" },
-    { "name": "测试词汇", "type": "file", "path": "words/测试/测试词汇.csv" }
-  ];
+const vocabData = [
+  {"name":"外研社一年级（一年级起步）","type":"file","path":"words/小学/外研社一年级（一年级起步）.csv"},
+  {"name":"外研社三年级（一年级起步）","type":"file","path":"words/小学/外研社三年级（一年级起步）.csv"},
+  {"name":"外研社三年级（三年级起步）","type":"file","path":"words/小学/外研社三年级（三年级起步）.csv"},
+  {"name":"外研社二年级（一年级起步）","type":"file","path":"words/小学/外研社二年级（一年级起步）.csv"},
+  {"name":"测试词汇","type":"file","path":"words/测试/测试词汇.csv"}
+];
 
-  const builtinContainer = document.getElementById('builtinList');
-  const folderMap = {};
+// ===== 自定义词表 =====
+let customLists = JSON.parse(localStorage.getItem('customLists') || '[]');
+const ul = document.getElementById('customLists');
+renderCustomLists();
 
-  vocabData.forEach(item => {
-    const parts = item.path.split('/');
-    const folder = parts[1];
-    const file = parts[2];
-    if (!folderMap[folder]) folderMap[folder] = [];
-    folderMap[folder].push(file);
+function renderCustomLists(){
+  ul.innerHTML = '';
+  customLists.forEach((list, index)=>{
+    const li = document.createElement('li');
+    li.innerHTML = `<span>${list.name}（${list.words.length} 个词）</span>
+      <div>
+        <button onclick="loadCustomList(${index})">加载</button>
+        <button onclick="deleteCustomList(${index})">删除</button>
+      </div>`;
+    ul.appendChild(li);
   });
+}
 
-  function renderFolders() {
-    builtinContainer.innerHTML = '';
-    Object.keys(folderMap).forEach(folderName => {
-      const btn = document.createElement('button');
-      btn.textContent = folderName;
-      btn.onclick = () => renderCSVList(folderName);
-      builtinContainer.appendChild(btn);
-    });
+function createCustomList(){
+  const name = document.getElementById('listName').value.trim();
+  const raw = document.getElementById('wordPairs').value.trim();
+  if(!name || !raw) return alert('请输入词表名和单词内容');
+  const lines = raw.split('\n').map(l=>l.split(',')).filter(a=>a.length===2);
+  const words = lines.map(([en,cn])=>({en:en.trim(),cn:cn.trim()}));
+  customLists.push({name,words});
+  localStorage.setItem('customLists', JSON.stringify(customLists));
+  renderCustomLists();
+  // 自动发送 CSV 给父页面
+  sendCSVToParent(words.map(w=>`${w.en},${w.cn}`).join('\n'));
+}
+
+// 删除自定义词表
+function deleteCustomList(index){
+  if(!confirm('确定删除这个词表吗？')) return;
+  customLists.splice(index,1);
+  localStorage.setItem('customLists', JSON.stringify(customLists));
+  renderCustomLists();
+}
+
+// 发送 CSV 给父页面
+function sendCSVToParent(csvText){
+  if(window.opener && !window.opener.closed){
+    window.opener.postMessage({type:"csvData", csv: csvText},"*");
+    setTimeout(()=>window.close(),100);
+  }else{
+    alert("父页面未找到，无法导入 CSV");
   }
+}
 
-  function renderCSVList(folderName) {
-    builtinContainer.innerHTML = '';
-    const backBtn = document.createElement('button');
-    backBtn.textContent = '⬅ 返回';
-    backBtn.onclick = () => renderFolders();
-    builtinContainer.appendChild(backBtn);
+// 加载自定义词表
+function loadCustomList(index){
+  const list = customLists[index];
+  const csvText = list.words.map(w=>`${w.en},${w.cn}`).join('\n');
+  sendCSVToParent(csvText);
+}
 
-    folderMap[folderName].forEach(file => {
-      const btn = document.createElement('button');
-      btn.textContent = file.replace('.csv', '');
-      btn.onclick = async () => {
-        const csvPath = `words/${folderName}/${file}`;
-        const res = await fetch(csvPath);
-        if (!res.ok) return alert('文件不存在');
+// ===== 内置词表 =====
+const builtinContainer = document.getElementById('builtinList');
+const folderMap = {};
+vocabData.forEach(item=>{
+  const parts = item.path.split('/');
+  const folder = parts[1];
+  const file = parts[2];
+  if(!folderMap[folder]) folderMap[folder] = [];
+  folderMap[folder].push(file);
+});
+
+function renderFolders(){
+  builtinContainer.innerHTML='';
+  Object.keys(folderMap).forEach(folder=>{
+    const btn = document.createElement('button');
+    btn.textContent = folder;
+    btn.onclick = ()=>renderCSVList(folder);
+    builtinContainer.appendChild(btn);
+  });
+}
+
+function renderCSVList(folder){
+  builtinContainer.innerHTML='';
+  const backBtn = document.createElement('button');
+  backBtn.textContent='⬅ 返回';
+  backBtn.onclick = ()=>renderFolders();
+  builtinContainer.appendChild(backBtn);
+
+  folderMap[folder].forEach(file=>{
+    const btn = document.createElement('button');
+    btn.textContent = file.replace('.csv','');
+    btn.onclick = async ()=>{
+      try{
+        const res = await fetch(`words/${folder}/${file}`);
+        if(!res.ok) throw new Error("文件不存在");
         const text = await res.text();
+        sendCSVToParent(text);
+      }catch(e){
+        alert("读取 CSV 失败："+e.message);
+      }
+    };
+    builtinContainer.appendChild(btn);
+  });
+}
 
-        // 发给父页面
-        if (window.opener) {
-          window.opener.postMessage({ type: 'csvData', csv: text }, '*');
-          window.close(); // 成功发送后关闭窗口
-        } else {
-          alert('找不到父页面，请通过弹窗方式打开');
-        }
-      };
-      builtinContainer.appendChild(btn);
-    });
-  }
-
-  renderFolders();
-
-  // ===== 自定义词表逻辑 =====
-  const customLists = JSON.parse(localStorage.getItem('customLists') || '[]');
-  const ul = document.getElementById('customLists');
-  renderLists();
-
-  function renderLists() {
-    ul.innerHTML = '';
-    customLists.forEach((list, index) => {
-      const li = document.createElement('li');
-      li.innerHTML = `
-        <span>${list.name}（${list.words.length} 个词）</span>
-        <div>
-          <button onclick="loadCustomList(${index})">加载</button>
-          <button onclick="deleteList(${index})">删除</button>
-        </div>
-      `;
-      ul.appendChild(li);
-    });
-  }
-
-  function createCustomList() {
-    const name = document.getElementById('listName').value.trim();
-    const raw = document.getElementById('wordPairs').value.trim();
-    if (!name || !raw) return alert('请输入词表名和单词内容');
-
-    const lines = raw.split('\n').map(l => l.split(',')).filter(a => a.length === 2);
-    const words = lines.map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
-
-    customLists.push({ name, words });
-    localStorage.setItem('customLists', JSON.stringify(customLists));
-    renderLists();
-    alert('✅ 创建成功');
-  }
-
-  function deleteList(index) {
-    if (confirm('确定删除这个词表吗？')) {
-      customLists.splice(index, 1);
-      localStorage.setItem('customLists', JSON.stringify(customLists));
-      renderLists();
-    }
-  }
-
-  function loadCustomList(index) {
-    const list = customLists[index];
-    const csvText = list.words.map(w => `${w.en},${w.cn}`).join('\n');
-
-    if (window.opener) {
-      window.opener.postMessage({ type: 'csvData', csv: csvText }, '*');
-      window.close();
-    } else {
-      alert('找不到父页面，请通过弹窗方式打开');
-    }
-  }
+// 初始渲染
+renderFolders();
 </script>
 </body>
 </html>
