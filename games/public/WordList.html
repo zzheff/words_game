@@ -56,6 +56,60 @@
   // ========== 让页面知道跳回哪里（主页面带?returnURL=xxx 进来） ==========
   const params = new URLSearchParams(window.location.search);
   const returnURL = params.get("returnURL") || "../index.html";
+  const vocabData = [
+  {
+    "name": "外研社一年级（一年级起步）",
+    "type": "file",
+    "path": "words/小学/外研社一年级（一年级起步）.csv"
+  },
+  {
+    "name": "外研社三年级（一年级起步）",
+    "type": "file",
+    "path": "words/小学/外研社三年级（一年级起步）.csv"
+  },
+  {
+    "name": "外研社三年级（三年级起步）",
+    "type": "file",
+    "path": "words/小学/外研社三年级（三年级起步）.csv"
+  },
+  {
+    "name": "外研社二年级（一年级起步）",
+    "type": "file",
+    "path": "words/小学/外研社二年级（一年级起步）.csv"
+  },
+  {
+    "name": "外研社五年级（一年级起步）",
+    "type": "file",
+    "path": "words/小学/外研社五年级（一年级起步）.csv"
+  },
+  {
+    "name": "外研社五年级（三年级起步）",
+    "type": "file",
+    "path": "words/小学/外研社五年级（三年级起步）.csv"
+  },
+  {
+    "name": "外研社六年级（一年级起步）",
+    "type": "file",
+    "path": "words/小学/外研社六年级（一年级起步）.csv"
+  },
+  {
+    "name": "外研社四年级（一年级起步）",
+    "type": "file",
+    "path": "words/小学/外研社四年级（一年级起步）.csv"
+  },
+  {
+    "name": "外研社四年级（三年级起步）",
+    "type": "file",
+    "path": "words/小学/外研社四年级（三年级起步）.csv"
+  },
+  {
+    "name": "测试词汇",
+    "type": "file",
+    "path": "words/测试/测试词汇.csv"
+  }
+];
+
+
 
   // ====== 自定义词表逻辑 ======
   const customLists = JSON.parse(localStorage.getItem('customLists') || '[]');
@@ -109,52 +163,60 @@
   }
 
 
-  // ========== 内置词表逻辑 ==========
+  //这里改了
   const builtinContainer = document.getElementById('builtinList');
 
-  function loadBuiltIn() {
-    const vocabData = [
-      { name: "🧐 测试单词", type: "file", path: "test.csv" }
-    ];
-    renderBuiltin(vocabData);
-  }
+  const folderMap = {};
 
-  function renderBuiltin(items) {
+  vocabData.forEach(item => {
+    const parts = item.path.split('/');
+    const folder = parts[1]; 
+    const file = parts[2];   
+
+    if (!folderMap[folder]) folderMap[folder] = [];
+    folderMap[folder].push(file);
+  });
+
+  // 渲染一级文件夹按钮
+  function renderFolders() {
     builtinContainer.innerHTML = '';
-    items.forEach(item => {
+    Object.keys(folderMap).forEach(folderName => {
       const btn = document.createElement('button');
-      btn.textContent = item.name;
-
-      btn.onclick = async () => {
-        if (item.type === 'file') {
-          try {
-            const res = await fetch(item.path);
-            if (!res.ok) throw new Error('文件未找到');
-            const text = await res.text();
-
-            const lines = text.trim().split(/\r?\n/);
-            const words = lines
-              .map(line => line.split(','))
-              .filter(a => a.length === 2)
-              .map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
-
-            // 📱 保存并跳回主页面
-            const csvText = words.map(w => `${w.en},${w.cn}`).join('\n');
-            localStorage.setItem("csv_data", csvText);
-            window.location.href = returnURL;
-
-          } catch (err) {
-            alert('❌ 无法加载词库，请确保文件存在');
-            console.error(err);
-          }
-        }
-      };
-
+      btn.textContent = folderName;
+      btn.onclick = () => renderCSVList(folderName);
       builtinContainer.appendChild(btn);
     });
   }
 
-  loadBuiltIn();
+  // 渲染二级 CSV 文件按钮
+  function renderCSVList(folderName) {
+    builtinContainer.innerHTML = '';
+    const backBtn = document.createElement('button');
+    backBtn.textContent = '⬅ 返回';
+    backBtn.onclick = () => renderFolders();
+    builtinContainer.appendChild(backBtn);
+
+    folderMap[folderName].forEach(file => {
+      const btn = document.createElement('button');
+      btn.textContent = file.replace('.csv', '');
+      btn.onclick = async () => {
+        const csvPath = `words/${folderName}/${file}`;
+        const res = await fetch(csvPath);
+        if (!res.ok) return alert('文件不存在');
+        const text = await res.text();
+        const lines = text.trim().split(/\r?\n/).map(l => l.split(',')).filter(a => a.length === 2);
+        const words = lines.map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
+
+        localStorage.setItem('csv_data', words.map(w => `${w.en},${w.cn}`).join('\n'));
+        window.location.href = returnURL;
+      };
+      builtinContainer.appendChild(btn);
+    });
+  }
+
+  // 初始加载
+  renderFolders();
+
 </script>
 </body>
 </html>
