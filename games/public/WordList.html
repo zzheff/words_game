@@ -109,15 +109,18 @@ function deleteList(index) {
 
 // 🔹 发送 CSV 给父页面或存 localStorage
 function sendCSV(csvText) {
-  if (window.opener && !window.opener.closed) {
+  if (returnURL) {
+    // SPA / quick_type 页面：存 localStorage 并跳回 returnURL
+    localStorage.setItem("csv_data", csvText);
+    window.location.href = decodeURIComponent(returnURL);
+  } else if (window.opener && !window.opener.closed) {
     // 父页面存在 → postMessage
     window.opener.postMessage({ type: "csvData", csv: csvText }, "*");
-    setTimeout(() => window.close(), 100); // 确保消息发送完成
+    setTimeout(() => window.close(), 100);
   } else {
-    // 父页面不存在 → 存 localStorage，flash 页面读取
+    // 仅 flashlight 独立使用
     localStorage.setItem("csv_data", csvText);
-    alert("✅ CSV 已保存，请返回 Flash 页面刷新！");
-    window.location.href = returnURL;
+    alert("✅ CSV 已保存，请返回页面使用");
   }
 }
 
