@@ -299,43 +299,44 @@ hintBtn.addEventListener('click', ()=>{
   }
 });
 
-// ===== 修复弹窗导入功能 =====
-csvBtn.addEventListener('click', ()=>{
-  const newWin = window.open('../public/WordList.html', 'wordlist', 'width=600,height=400');
-  if (!newWin) alert('请允许弹出窗口以导入词表');
+// ===== 修改后的导入 CSV 功能（整页跳转，不用弹窗） =====
+csvBtn.addEventListener('click', () => {
+  const returnURL = encodeURIComponent(window.location.pathname);
+  window.location.href = `../public/WordList.html?returnURL=${returnURL}`;
 });
 
-window.addEventListener('message', (event) => {
-  if (!event.data || csvReceived) return;
+// ===== 页面载入后检查 localStorage 是否有 CSV 数据 =====
+window.addEventListener("DOMContentLoaded", () => {
+  const csvText = localStorage.getItem("csv_data");
+  if (!csvText) return;
 
-  const { type, csv } = event.data || {};
-  if (type === "csvData" && typeof csv === "string") {
-    csvReceived = true;
-    const lines = csv.split(/\r?\n/).filter(l => l.trim() !== '');
-    words = lines.map(line=>{
-      const parts = line.split(',');
-      if (parts.length < 2) return null;
-      let en='', cn='';
-      if (/[a-zA-Z]/.test(parts[0]) && !/[\u4e00-\u9fa5]/.test(parts[0])) {
-        en = parts[0].trim(); cn = parts[1].trim();
-      } else {
-        en = parts[1].trim(); cn = parts[0].trim();
-      }
-      return { en, cn };
-    }).filter(w=>w && w.en);
+  localStorage.removeItem("csv_data");
 
-    if(words.length === 0){
-      alert("⚠️ CSV 格式错误，请确认格式为： apple,苹果");
-      return;
+  const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
+  words = lines.map(line=>{
+    const parts = line.split(',');
+    if(parts.length < 2) return null;
+    let en='', cn='';
+    if(/[a-zA-Z]/.test(parts[0]) && !/[\u4e00-\u9fa5]/.test(parts[0])){
+      en = parts[0].trim(); cn = parts[1].trim();
+    } else {
+      en = parts[1].trim(); cn = parts[0].trim();
     }
+    return { en, cn };
+  }).filter(w=>w && w.en);
 
-    settingsOverlay.style.display = "none";
-    currentIndex = 0;
-    currentWord = words[currentIndex].en.split('');
-    renderWord();
+  if(words.length === 0){
+    alert("⚠️ CSV 格式错误，请确认格式为： apple,苹果");
+    return;
   }
+
+  settingsOverlay.style.display = "none";
+  currentIndex = 0;
+  currentWord = words[currentIndex].en.split('');
+  renderWord();
 });
 
+// ===== 重练未答单词 =====
 retryMissedBtn.addEventListener('click', ()=>{
   if(missed.length === 0){
     alert('没有未答单词可重练！');
