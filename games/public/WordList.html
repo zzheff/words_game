@@ -51,109 +51,124 @@
 </div>
 
 <script>
+const params = new URLSearchParams(window.location.search);
+const returnURL = params.get("returnURL") || "../flashlight.html"; // 默认返回flashlight
+
 const vocabData = [
   {"name":"外研社一年级（一年级起步）","type":"file","path":"words/小学/外研社一年级（一年级起步）.csv"},
   {"name":"外研社三年级（一年级起步）","type":"file","path":"words/小学/外研社三年级（一年级起步）.csv"},
   {"name":"外研社三年级（三年级起步）","type":"file","path":"words/小学/外研社三年级（三年级起步）.csv"},
   {"name":"外研社二年级（一年级起步）","type":"file","path":"words/小学/外研社二年级（一年级起步）.csv"},
+  {"name":"外研社五年级（一年级起步）","type":"file","path":"words/小学/外研社五年级（一年级起步）.csv"},
+  {"name":"外研社五年级（三年级起步）","type":"file","path":"words/小学/外研社五年级（三年级起步）.csv"},
+  {"name":"外研社六年级（一年级起步）","type":"file","path":"words/小学/外研社六年级（一年级起步）.csv"},
+  {"name":"外研社四年级（一年级起步）","type":"file","path":"words/小学/外研社四年级（一年级起步）.csv"},
+  {"name":"外研社四年级（三年级起步）","type":"file","path":"words/小学/外研社四年级（三年级起步）.csv"},
   {"name":"测试词汇","type":"file","path":"words/测试/测试词汇.csv"}
 ];
 
-// ===== 自定义词表 =====
-let customLists = JSON.parse(localStorage.getItem('customLists') || '[]');
+// 自定义词表
+const customLists = JSON.parse(localStorage.getItem('customLists') || '[]');
 const ul = document.getElementById('customLists');
-renderCustomLists();
+renderLists();
 
-function renderCustomLists(){
+function renderLists() {
   ul.innerHTML = '';
-  customLists.forEach((list, index)=>{
+  customLists.forEach((list, index) => {
     const li = document.createElement('li');
-    li.innerHTML = `<span>${list.name}（${list.words.length} 个词）</span>
+    li.innerHTML = `
+      <span>${list.name}（${list.words.length} 个词）</span>
       <div>
         <button onclick="loadCustomList(${index})">加载</button>
-        <button onclick="deleteCustomList(${index})">删除</button>
-      </div>`;
+        <button onclick="deleteList(${index})">删除</button>
+      </div>
+    `;
     ul.appendChild(li);
   });
 }
 
-function createCustomList(){
+function createCustomList() {
   const name = document.getElementById('listName').value.trim();
   const raw = document.getElementById('wordPairs').value.trim();
-  if(!name || !raw) return alert('请输入词表名和单词内容');
-  const lines = raw.split('\n').map(l=>l.split(',')).filter(a=>a.length===2);
-  const words = lines.map(([en,cn])=>({en:en.trim(),cn:cn.trim()}));
-  customLists.push({name,words});
+  if (!name || !raw) return alert('请输入词表名和单词内容');
+  const lines = raw.split('\n').map(l => l.split(',')).filter(a => a.length === 2);
+  const words = lines.map(([en, cn]) => ({ en: en.trim(), cn: cn.trim() }));
+  customLists.push({ name, words });
   localStorage.setItem('customLists', JSON.stringify(customLists));
-  renderCustomLists();
-  // 自动发送 CSV 给父页面
-  sendCSVToParent(words.map(w=>`${w.en},${w.cn}`).join('\n'));
+  renderLists();
+  alert('✅ 创建成功');
 }
 
-// 删除自定义词表
-function deleteCustomList(index){
-  if(!confirm('确定删除这个词表吗？')) return;
-  customLists.splice(index,1);
-  localStorage.setItem('customLists', JSON.stringify(customLists));
-  renderCustomLists();
-}
-
-// 发送 CSV 给父页面
-function sendCSVToParent(csvText){
-  if(window.opener && !window.opener.closed){
-    window.opener.postMessage({type:"csvData", csv: csvText},"*");
-    setTimeout(()=>window.close(),100);
-  }else{
-    alert("父页面未找到，无法导入 CSV");
+function deleteList(index) {
+  if (confirm('确定删除这个词表吗？')) {
+    customLists.splice(index, 1);
+    localStorage.setItem('customLists', JSON.stringify(customLists));
+    renderLists();
   }
 }
 
-// 加载自定义词表
-function loadCustomList(index){
-  const list = customLists[index];
-  const csvText = list.words.map(w=>`${w.en},${w.cn}`).join('\n');
-  sendCSVToParent(csvText);
+// 🔹 发送 CSV 给父页面或存 localStorage
+function sendCSV(csvText) {
+  if (window.opener && !window.opener.closed) {
+    // 父页面存在 → postMessage
+    window.opener.postMessage({ type: "csvData", csv: csvText }, "*");
+    setTimeout(() => window.close(), 100); // 确保消息发送完成
+  } else {
+    // 父页面不存在 → 存 localStorage，flash 页面读取
+    localStorage.setItem("csv_data", csvText);
+    alert("✅ CSV 已保存，请返回 Flash 页面刷新！");
+    window.location.href = returnURL;
+  }
 }
 
-// ===== 内置词表 =====
+// 🔹 加载自定义词表
+function loadCustomList(index) {
+  const list = customLists[index];
+  const csvText = list.words.map(w => `${w.en},${w.cn}`).join('\n');
+  sendCSV(csvText);
+}
+
+// 内置词表逻辑
 const builtinContainer = document.getElementById('builtinList');
 const folderMap = {};
-vocabData.forEach(item=>{
+
+vocabData.forEach(item => {
   const parts = item.path.split('/');
-  const folder = parts[1];
-  const file = parts[2];
-  if(!folderMap[folder]) folderMap[folder] = [];
+  const folder = parts[1]; 
+  const file = parts[2];   
+  if (!folderMap[folder]) folderMap[folder] = [];
   folderMap[folder].push(file);
 });
 
-function renderFolders(){
-  builtinContainer.innerHTML='';
-  Object.keys(folderMap).forEach(folder=>{
+function renderFolders() {
+  builtinContainer.innerHTML = '';
+  Object.keys(folderMap).forEach(folderName => {
     const btn = document.createElement('button');
-    btn.textContent = folder;
-    btn.onclick = ()=>renderCSVList(folder);
+    btn.textContent = folderName;
+    btn.onclick = () => renderCSVList(folderName);
     builtinContainer.appendChild(btn);
   });
 }
 
-function renderCSVList(folder){
-  builtinContainer.innerHTML='';
+function renderCSVList(folderName) {
+  builtinContainer.innerHTML = '';
   const backBtn = document.createElement('button');
-  backBtn.textContent='⬅ 返回';
-  backBtn.onclick = ()=>renderFolders();
+  backBtn.textContent = '⬅ 返回';
+  backBtn.onclick = () => renderFolders();
   builtinContainer.appendChild(backBtn);
 
-  folderMap[folder].forEach(file=>{
+  folderMap[folderName].forEach(file => {
     const btn = document.createElement('button');
-    btn.textContent = file.replace('.csv','');
-    btn.onclick = async ()=>{
-      try{
-        const res = await fetch(`words/${folder}/${file}`);
-        if(!res.ok) throw new Error("文件不存在");
+    btn.textContent = file.replace('.csv', '');
+    btn.onclick = async () => {
+      const csvPath = `words/${folderName}/${file}`;
+      try {
+        const res = await fetch(csvPath);
+        if (!res.ok) throw new Error("文件不存在");
         const text = await res.text();
-        sendCSVToParent(text);
-      }catch(e){
-        alert("读取 CSV 失败："+e.message);
+        sendCSV(text);
+      } catch (e) {
+        alert("读取 CSV 失败: " + e.message);
       }
     };
     builtinContainer.appendChild(btn);
